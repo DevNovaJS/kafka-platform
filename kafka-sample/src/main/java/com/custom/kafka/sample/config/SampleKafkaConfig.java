@@ -16,27 +16,14 @@ public class SampleKafkaConfig {
     private final SampleKafkaListenerProperties listenerProperties;
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> paymentKafkaListenerContainerFactory(
+    public ConcurrentKafkaListenerContainerFactory<String, String> activityKafkaListenerContainerFactory(
             KafkaProperties kafkaProperties
     ) {
-        SimpleAsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
+        SimpleAsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor("activity-consumer-");
         taskExecutor.setVirtualThreads(true);
 
         return KafkaContainerFactoryBuilder
-                .from(kafkaProperties, listenerProperties.payment())
-                .taskExecutor(taskExecutor)
-                .build();
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> productKafkaListenerContainerFactory(
-            KafkaProperties kafkaProperties
-    ) {
-        SimpleAsyncTaskExecutor taskExecutor = new SimpleAsyncTaskExecutor();
-        taskExecutor.setVirtualThreads(true);
-
-        return KafkaContainerFactoryBuilder
-                .from(kafkaProperties, listenerProperties.product())
+                .from(kafkaProperties, listenerProperties.activity())
                 .taskExecutor(taskExecutor)
                 .build();
     }

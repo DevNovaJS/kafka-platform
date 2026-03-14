@@ -10,15 +10,9 @@ slack:
 
 kafka:
   listener:
-    payment:
-      concurrency: ${KAFKA_PAYMENT_CONCURRENCY:3}
-      ack-mode: ${KAFKA_PAYMENT_ACK_MODE:BATCH}
-      sync-commits: ${KAFKA_PAYMENT_SYNC_COMMITS:true}
-      poll-timeout: ${KAFKA_PAYMENT_POLL_TIMEOUT:5000}
-      batch-listener: ${KAFKA_PAYMENT_BATCH_LISTENER:false}
-    product:
-      concurrency: ${KAFKA_PRODUCT_CONCURRENCY:3}
-      ack-mode: ${KAFKA_PRODUCT_ACK_MODE:BATCH}
-      sync-commits: ${KAFKA_PRODUCT_SYNC_COMMITS:true}
-      poll-timeout: ${KAFKA_PRODUCT_POLL_TIMEOUT:5000}
-      batch-listener: ${KAFKA_PRODUCT_BATCH_LISTENER:false}
+    activity:
+      concurrency: ${KAFKA_ACTIVITY_CONCURRENCY:3}
+      ack-mode: ${KAFKA_ACTIVITY_ACK_MODE:BATCH}
+      sync-commits: ${KAFKA_ACTIVITY_SYNC_COMMITS:true}
+      poll-timeout: ${KAFKA_ACTIVITY_POLL_TIMEOUT:5000}
+      batch-listener: ${KAFKA_ACTIVITY_BATCH_LISTENER:false}

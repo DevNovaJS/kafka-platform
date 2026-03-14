@@ -55,12 +55,11 @@ kafka-platform/
 │       ├── consumer/      # DltConsumer (@KafkaListener topicPattern=".*\\.DLT")
 │       ├── document/      # DltMessage (MongoDB Document)
 │       └── repository/    # DltMessageRepository
-└── kafka-sample/          # spring-boot app — 결제/상품 샘플 컨슈머
+└── kafka-sample/          # spring-boot app — 사용자 활동 샘플 컨슈머
     └── com.custom.kafka.sample
         ├── config/        # SampleKafkaConfig, SampleKafkaListenerProperties
-        ├── event/         # PaymentEvent, ProductEvent
-        ├── payment/       # PaymentConsumer
-        └── product/       # ProductConsumer
+        ├── activity/      # UserActivityEvent, UserActivityLog, UserActivityStats, UserActivityService, UserActivityLogRepository
+        └── consumer/      # ActivityConsumer
 ```
 
 - `kafka-common`: 라이브러리. Boot 앱 아님. 다른 모듈이 `implementation project(':kafka-common')`으로 의존
@@ -102,8 +101,7 @@ kafka-platform/
 
 ## JDK 25 적용 원칙
 
-- **Record**: Document, Event, DTO, Properties 전반 (MessageHistory, DltMessage, PaymentEvent, ProductEvent, TopicCount, CustomKafkaListenerProperties 등)
-- **Pattern matching switch**: 이벤트 상태/타입 분기 (PaymentConsumer, ProductConsumer)
+- **Record**: Document, Event, DTO, Properties 전반 (MessageHistory, DltMessage, UserActivityEvent, UserActivityLog, UserActivityStats, TopicCount, CustomKafkaListenerProperties 등)
 - **Virtual Thread**: Kafka listener thread pool (`spring.threads.virtual.enabled=true`, `SimpleAsyncTaskExecutor`)
 - **Text block**: 슬랙 메시지 템플릿 (SlackNotifier)
 
@@ -135,16 +133,11 @@ kafka-platform/
 | `KAFKA_BOOTSTRAP_SERVERS` | dlt, sample | Kafka 브로커 주소 |
 | `MONGODB_URI` | dlt, sample | MongoDB 연결 URI |
 | `SLACK_WEBHOOK_URL` | dlt, sample | Slack Webhook URL (필수) |
-| `KAFKA_PAYMENT_CONCURRENCY` | sample | payment 컨슈머 동시성 (기본 3) |
-| `KAFKA_PAYMENT_ACK_MODE` | sample | payment ACK 모드 (기본 BATCH) |
-| `KAFKA_PAYMENT_SYNC_COMMITS` | sample | payment 동기 커밋 (기본 true) |
-| `KAFKA_PAYMENT_POLL_TIMEOUT` | sample | payment poll timeout ms (기본 5000) |
-| `KAFKA_PAYMENT_BATCH_LISTENER` | sample | payment 배치 리스너 여부 (기본 false) |
-| `KAFKA_PRODUCT_CONCURRENCY` | sample | product 컨슈머 동시성 (기본 3) |
-| `KAFKA_PRODUCT_ACK_MODE` | sample | product ACK 모드 (기본 BATCH) |
-| `KAFKA_PRODUCT_SYNC_COMMITS` | sample | product 동기 커밋 (기본 true) |
-| `KAFKA_PRODUCT_POLL_TIMEOUT` | sample | product poll timeout ms (기본 5000) |
-| `KAFKA_PRODUCT_BATCH_LISTENER` | sample | product 배치 리스너 여부 (기본 false) |
+| `KAFKA_ACTIVITY_CONCURRENCY` | sample | activity 컨슈머 동시성 (기본 3) |
+| `KAFKA_ACTIVITY_ACK_MODE` | sample | activity ACK 모드 (기본 BATCH) |
+| `KAFKA_ACTIVITY_SYNC_COMMITS` | sample | activity 동기 커밋 (기본 true) |
+| `KAFKA_ACTIVITY_POLL_TIMEOUT` | sample | activity poll timeout ms (기본 5000) |
+| `KAFKA_ACTIVITY_BATCH_LISTENER` | sample | activity 배치 리스너 여부 (기본 false) |
 
 ### 주요 설정 항목
 
