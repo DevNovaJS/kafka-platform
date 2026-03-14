@@ -20,7 +20,7 @@ public class SlackNotifier {
 
     public void sendError(String messageId, int failCount, ConsumerRecord<String, String> record, Exception e) {
         if (webhookUrl.isBlank()) {
-            log.warn("Slack webhook URL 미설정 — 에러 알림 스킵: messageId={}", messageId);
+            log.error("Slack webhook URL 미설정 — 에러 알림 스킵: messageId={}", messageId);
             return;
         }
 
@@ -42,7 +42,7 @@ public class SlackNotifier {
     @Async
     public void sendDltThresholdAlert(String topic, long count, long windowMinutes) {
         if (webhookUrl.isBlank()) {
-            log.warn("Slack webhook URL 미설정 — DLT 임계치 알림 스킵: topic={}", topic);
+            log.error("Slack webhook URL 미설정 — DLT 임계치 알림 스킵: topic={}", topic);
             return;
         }
 
