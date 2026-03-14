@@ -52,7 +52,7 @@ kafka-platform/
 ├── kafka-dlt/             # spring-boot app — DLT 메시지 수신/저장
 │   └── com.custom.kafka.dlt
 │       ├── config/        # DltKafkaConfig
-│       ├── consumer/      # DltConsumer (@KafkaListener topicPattern=".*\\.DLT")
+│       ├── consumer/      # DltConsumer (@KafkaListener topicPattern=".*-DLT")
 │       ├── document/      # DltMessage (MongoDB Document)
 │       └── repository/    # DltMessageRepository
 └── kafka-sample/          # spring-boot app — 사용자 활동 샘플 컨슈머
@@ -91,7 +91,7 @@ kafka-platform/
 
 ### DLT 자동 구독
 
-- `@KafkaListener(topicPattern = ".*\\.DLT")` → 신규 토픽 DLT 자동 수신
+- `@KafkaListener(topicPattern = ".*-DLT")` → 신규 토픽 DLT 자동 수신
 - `metadata.max.age.ms`로 감지 주기 조절
 
 ### 슬랙 알림

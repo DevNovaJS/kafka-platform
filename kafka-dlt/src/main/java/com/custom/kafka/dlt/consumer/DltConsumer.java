@@ -22,7 +22,7 @@ public class DltConsumer {
     private int maxRetryCount;
 
     @KafkaListener(
-            topicPattern = ".*\\.DLT",
+            topicPattern = ".*-DLT",
             groupId = "${spring.kafka.consumer.group-id:kafka-dlt-group}",
             containerFactory = "dltKafkaListenerContainerFactory"
     )

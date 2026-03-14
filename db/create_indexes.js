@@ -1,3 +1,5 @@
+const db = db.getSiblingDB('kafka_mono');
+
 // =============================================
 // kafka_message_history
 // =============================================
@@ -33,4 +35,30 @@ db.kafka_dlt_message.createIndex(
 db.kafka_dlt_message.createIndex(
     { status: 1 },
     { name: "dlt_status" }
+);
+
+// =============================================
+// user_activity_logs
+// =============================================
+// messageId unique — 메시지당 로그 1건 보장 (멱등성 2차 방어)
+// userId 인덱스 — 유저별 활동 조회용
+
+db.user_activity_logs.createIndex(
+    { messageId: 1 },
+    { name: "activity_log_messageId", unique: true }
+);
+
+db.user_activity_logs.createIndex(
+    { userId: 1 },
+    { name: "activity_log_userId" }
+);
+
+// =============================================
+// user_activity_stats
+// =============================================
+// {activityType, targetId} 복합 unique — 사전 집계 upsert 키
+
+db.user_activity_stats.createIndex(
+    { activityType: 1, targetId: 1 },
+    { name: "activity_stats_type_target", unique: true }
 );

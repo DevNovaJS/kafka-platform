@@ -19,7 +19,7 @@ public class DltSender {
 
     public void send(String messageId, int failCount, ConsumerRecord<String, String> record) {
         int nextFailCount = failCount + 1;
-        String dltTopic = record.topic() + ".DLT";
+        String dltTopic = record.topic() + "-DLT";
         ProducerRecord<String, String> dltRecord = this.buildDltRecord(dltTopic, record, messageId, nextFailCount);
 
         kafkaTemplate.send(dltRecord)
