@@ -1,0 +1,4 @@
+rootProject.name = 'kafka-platform'
+include ('kafka-common')
+include ('kafka-dlt')
+include ('kafka-sample')

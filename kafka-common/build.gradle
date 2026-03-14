@@ -1,0 +1,10 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    api 'org.springframework.boot:spring-boot-kafka'
+    api 'org.aspectj:aspectjweaver'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}

@@ -1,0 +1,12 @@
+plugins {
+    id 'org.springframework.boot'
+    id 'org.graalvm.buildtools.native'
+}
+
+dependencies {
+    implementation project(':kafka-common')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}
