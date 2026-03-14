@@ -13,9 +13,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew :kafka-dlt:build
 ./gradlew :kafka-sample:build
 
-# 앱 실행 (Boot 모듈만)
-./gradlew :kafka-dlt:bootRun
-./gradlew :kafka-sample:bootRun
+# 앱 실행 (Boot 모듈만) — 프로파일 필수
+./gradlew :kafka-dlt:bootRun --args='--spring.profiles.active=local'
+./gradlew :kafka-sample:bootRun --args='--spring.profiles.active=local'
 
 # 테스트
 ./gradlew test                    # 전체
@@ -107,8 +107,46 @@ kafka-platform/
 - **Virtual Thread**: Kafka listener thread pool (`spring.threads.virtual.enabled=true`, `SimpleAsyncTaskExecutor`)
 - **Text block**: 슬랙 메시지 템플릿 (SlackNotifier)
 
-## 설정 파일
+## 설정 파일 구조 (Spring Profile 분리)
 
-- 각 Boot 모듈의 `src/main/resources/application.yml`에서 MongoDB, Kafka, 슬랙 webhook, DLT 임계치 등 설정
+각 Boot 모듈(`kafka-dlt`, `kafka-sample`)은 세 파일로 설정을 분리한다.
+
+| 파일 | 역할 |
+|---|---|
+| `application.yml` | 환경 무관 공통 설정 (포트, consumer 직렬화, 스레드, management, DLT 임계치 등) |
+| `application-local.yml` | 로컬 전용 (localhost URL, Slack URL 선택) |
+| `application-prod.yml` | 운영 전용 (환경 변수 참조, Slack URL 필수) |
+
+### 프로파일 활성화
+
+```bash
+# 로컬 실행
+./gradlew :kafka-dlt:bootRun --args='--spring.profiles.active=local'
+./gradlew :kafka-sample:bootRun --args='--spring.profiles.active=local'
+
+# 운영 실행 (환경 변수 필수)
+--spring.profiles.active=prod
+```
+
+### 환경 변수 (prod 프로파일)
+
+| 환경 변수 | 대상 모듈 | 설명 |
+|---|---|---|
+| `KAFKA_BOOTSTRAP_SERVERS` | dlt, sample | Kafka 브로커 주소 |
+| `MONGODB_URI` | dlt, sample | MongoDB 연결 URI |
+| `SLACK_WEBHOOK_URL` | dlt, sample | Slack Webhook URL (필수) |
+| `KAFKA_PAYMENT_CONCURRENCY` | sample | payment 컨슈머 동시성 (기본 3) |
+| `KAFKA_PAYMENT_ACK_MODE` | sample | payment ACK 모드 (기본 BATCH) |
+| `KAFKA_PAYMENT_SYNC_COMMITS` | sample | payment 동기 커밋 (기본 true) |
+| `KAFKA_PAYMENT_POLL_TIMEOUT` | sample | payment poll timeout ms (기본 5000) |
+| `KAFKA_PAYMENT_BATCH_LISTENER` | sample | payment 배치 리스너 여부 (기본 false) |
+| `KAFKA_PRODUCT_CONCURRENCY` | sample | product 컨슈머 동시성 (기본 3) |
+| `KAFKA_PRODUCT_ACK_MODE` | sample | product ACK 모드 (기본 BATCH) |
+| `KAFKA_PRODUCT_SYNC_COMMITS` | sample | product 동기 커밋 (기본 true) |
+| `KAFKA_PRODUCT_POLL_TIMEOUT` | sample | product poll timeout ms (기본 5000) |
+| `KAFKA_PRODUCT_BATCH_LISTENER` | sample | product 배치 리스너 여부 (기본 false) |
+
+### 주요 설정 항목
+
 - `CustomKafkaListenerProperties`로 concurrency/ackMode/syncCommits/pollTimeout/batchListener 모듈별 커스텀 가능
-- `kafka.dlt.max-retry-count`: DLT 최대 재시도 횟수 (기본값 3, 초과 시 발송 중단)
+- `kafka.dlt.max-retry-count`: DLT 최대 재시도 횟수 (기본값 3, 초과 시 발송 중단) — `DltConsumer` `@Value` 참조
