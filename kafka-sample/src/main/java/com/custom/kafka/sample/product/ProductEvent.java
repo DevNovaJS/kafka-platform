@@ -1,4 +1,4 @@
-package com.custom.kafka.sample.event;
+package com.custom.kafka.sample.product;
 
 public record ProductEvent(
         String productId,

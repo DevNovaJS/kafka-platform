@@ -1,8 +1,8 @@
-package com.custom.kafka.sample.product;
+package com.custom.kafka.sample.consumer;
 
 import com.custom.kafka.common.message.KafkaEventMessage;
 import com.custom.kafka.common.processor.KafkaMessageHandler;
-import com.custom.kafka.sample.event.ProductEvent;
+import com.custom.kafka.sample.product.ProductEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;

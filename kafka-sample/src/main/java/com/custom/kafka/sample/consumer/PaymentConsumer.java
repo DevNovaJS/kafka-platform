@@ -1,8 +1,8 @@
-package com.custom.kafka.sample.payment;
+package com.custom.kafka.sample.consumer;
 
 import com.custom.kafka.common.message.KafkaEventMessage;
 import com.custom.kafka.common.processor.KafkaMessageHandler;
-import com.custom.kafka.sample.event.PaymentEvent;
+import com.custom.kafka.sample.payment.PaymentEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
