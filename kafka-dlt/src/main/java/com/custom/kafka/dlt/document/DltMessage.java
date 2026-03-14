@@ -20,7 +20,7 @@ import java.time.Instant;
 public class DltMessage {
     @Id
     private String id;
-    @Indexed
+    @Indexed(unique = true)
     private String messageId;
     @Indexed
     private String originalTopic;

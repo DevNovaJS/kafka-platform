@@ -9,7 +9,7 @@ import java.time.Instant;
 
 @Builder
 @Document("kafka_message_history")
-@CompoundIndex(def = "{'messageId': 1, 'failCount': 1}", unique = true)
+@CompoundIndex(def = "{'messageId': 1, 'failCount': 1}")
 public record MessageHistory(
         @Id String id,
         String messageId,
