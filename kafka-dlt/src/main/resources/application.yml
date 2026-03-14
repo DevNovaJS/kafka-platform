@@ -2,7 +2,6 @@ spring:
   application:
     name: kafka-dlt
   kafka:
-    bootstrap-servers: localhost:9092
     consumer:
       group-id: kafka-dlt-group
       auto-offset-reset: earliest
@@ -13,8 +12,6 @@ spring:
   threads:
     virtual:
       enabled: true
-  mongodb:
-    uri: mongodb://localhost:27017/kafka_mono
 
 server:
   port: 8081
@@ -31,7 +28,4 @@ kafka:
       check-interval: 60000
       window-minutes: 60
       max-count: 10
-
-slack:
-  webhook:
-    url: ${SLACK_WEBHOOK_URL:}
+    max-retry-count: 3

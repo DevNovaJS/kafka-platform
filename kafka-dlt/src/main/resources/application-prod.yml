@@ -1,0 +1,9 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  mongodb:
+    uri: ${MONGODB_URI}
+
+slack:
+  webhook:
+    url: ${SLACK_WEBHOOK_URL}   # 운영에서는 필수

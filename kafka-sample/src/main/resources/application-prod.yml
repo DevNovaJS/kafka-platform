@@ -1,0 +1,24 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  mongodb:
+    uri: ${MONGODB_URI}
+
+slack:
+  webhook:
+    url: ${SLACK_WEBHOOK_URL}   # 운영에서는 필수
+
+kafka:
+  listener:
+    payment:
+      concurrency: ${KAFKA_PAYMENT_CONCURRENCY:3}
+      ack-mode: ${KAFKA_PAYMENT_ACK_MODE:BATCH}
+      sync-commits: ${KAFKA_PAYMENT_SYNC_COMMITS:true}
+      poll-timeout: ${KAFKA_PAYMENT_POLL_TIMEOUT:5000}
+      batch-listener: ${KAFKA_PAYMENT_BATCH_LISTENER:false}
+    product:
+      concurrency: ${KAFKA_PRODUCT_CONCURRENCY:3}
+      ack-mode: ${KAFKA_PRODUCT_ACK_MODE:BATCH}
+      sync-commits: ${KAFKA_PRODUCT_SYNC_COMMITS:true}
+      poll-timeout: ${KAFKA_PRODUCT_POLL_TIMEOUT:5000}
+      batch-listener: ${KAFKA_PRODUCT_BATCH_LISTENER:false}

@@ -2,7 +2,6 @@ spring:
   application:
     name: kafka-sample
   kafka:
-    bootstrap-servers: localhost:9092
     consumer:
       group-id: kafka-sample-group
       auto-offset-reset: earliest
@@ -13,8 +12,6 @@ spring:
   threads:
     virtual:
       enabled: true
-  mongodb:
-    uri: mongodb://localhost:27017/kafka_mono
 
 server:
   port: 8082
@@ -25,21 +22,3 @@ management:
       exposure:
         include: health,info,metrics
 
-kafka:
-  listener:
-    payment:
-      concurrency: 3
-      ack-mode: BATCH
-      sync-commits: true
-      poll-timeout: 5000
-      batch-listener: false
-    product:
-      concurrency: 3
-      ack-mode: BATCH
-      sync-commits: true
-      poll-timeout: 5000
-      batch-listener: false
-
-slack:
-  webhook:
-    url: ${SLACK_WEBHOOK_URL:}
