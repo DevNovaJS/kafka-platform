@@ -1,0 +1,23 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+      group-id: kafka-dlt-test-group
+  threads:
+    virtual:
+      enabled: true
+
+kafka:
+  dlt:
+    max-retry-count: 3
+    threshold:
+      check-interval: 999999999
+      window-minutes: 60
+      max-count: 10
+
+slack:
+  webhook:
+    url: ""
