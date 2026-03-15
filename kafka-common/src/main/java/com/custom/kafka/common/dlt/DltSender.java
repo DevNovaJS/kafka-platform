@@ -1,5 +1,6 @@
 package com.custom.kafka.common.dlt;
 
+import com.custom.kafka.common.message.CommonConstants;
 import com.custom.kafka.common.message.KafkaMessageHeaders;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,7 @@ public class DltSender {
 
     public void send(String messageId, int failCount, ConsumerRecord<String, String> record) {
         int nextFailCount = failCount + 1;
-        String dltTopic = record.topic() + "-DLT";
+        String dltTopic = record.topic() + CommonConstants.DLT_TOPIC_SUFFIX;
         ProducerRecord<String, String> dltRecord = this.buildDltRecord(dltTopic, record, messageId, nextFailCount);
 
         kafkaTemplate.send(dltRecord)

@@ -1,5 +1,6 @@
 package com.custom.kafka.dlt.consumer;
 
+import com.custom.kafka.common.message.CommonConstants;
 import com.custom.kafka.common.message.KafkaMessageHeaders;
 import com.custom.kafka.dlt.document.DltMessage;
 import com.custom.kafka.dlt.document.DltMessageStatus;
@@ -18,11 +19,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DltConsumer {
     private final DltMessageRepository dltMessageRepository;
+
     @Value("${kafka.dlt.max-retry-count:3}")
     private int maxRetryCount;
 
     @KafkaListener(
-            topicPattern = ".*-DLT",
+            topicPattern = ".*" + CommonConstants.DLT_TOPIC_SUFFIX,
             groupId = "${spring.kafka.consumer.group-id:kafka-dlt-group}",
             containerFactory = "dltKafkaListenerContainerFactory"
     )
