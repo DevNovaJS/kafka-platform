@@ -80,7 +80,7 @@ kafka-platform/
       → FAIL    → 이력 저장 (FAILED) → DLT 발송 (failCount+1) → 슬랙 에러 알림
 ```
 
-- 멱등키: `{messageId, failCount}` MongoDB compound unique index
+- 멱등키: `{messageId, failCount}` MongoDB compound index (non-unique — 중복 저장 허용, 멱등성 체크는 앱 레벨 `existsByMessageIdAndFailCount`로 수행)
 - failCount는 Kafka Header (`X-Fail-Count`)로 전달, payload 오염 없음
 - 컨슈머는 비즈니스 로직만 구현. 멱등성/이력/DLT/알림은 AOP가 담당
 

@@ -18,6 +18,7 @@ public class SlackNotifier {
     private String webhookUrl;
     private final RestClient restClient;
 
+    @Async
     public void sendError(String messageId, int failCount, ConsumerRecord<String, String> record, Exception e) {
         if (webhookUrl.isBlank()) {
             log.error("Slack webhook URL 미설정 — 에러 알림 스킵: messageId={}", messageId);
