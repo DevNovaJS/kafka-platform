@@ -17,13 +17,14 @@ import java.time.Instant;
 public class UserActivityService {
     private final MongoTemplate mongoTemplate;
 
-    public void process(@Valid UserActivityEvent event, String messageId) {
+    public void process(@Valid UserActivityEvent event, String eventKey, String eventId) {
         Instant now = Instant.now();
 
         mongoTemplate.upsert(
-                Query.query(Criteria.where("messageId").is(messageId)),
+                Query.query(Criteria.where("eventKey").is(eventKey).and("eventId").is(eventId)),
                 new Update()
-                        .setOnInsert("messageId", messageId)
+                        .setOnInsert("eventKey", eventKey)
+                        .setOnInsert("eventId", eventId)
                         .setOnInsert("userId", event.userId())
                         .setOnInsert("sessionId", event.sessionId())
                         .setOnInsert("activityType", event.activityType())

@@ -13,20 +13,39 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class KafkaMessageHeadersTest {
 
     @Test
-    void getMessageId_present_returnsValue() {
+    void getEventKey_present_returnsValue() {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
-        record.headers().add(new RecordHeader(KafkaMessageHeaders.MESSAGE_ID, "abc-123".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader(KafkaMessageHeaders.EVENT_KEY, "key-123".getBytes(StandardCharsets.UTF_8)));
 
-        Optional<String> result = KafkaMessageHeaders.getMessageId(record);
+        Optional<String> result = KafkaMessageHeaders.getEventKey(record);
 
-        assertThat(result).contains("abc-123");
+        assertThat(result).contains("key-123");
     }
 
     @Test
-    void getMessageId_absent_returnsEmpty() {
+    void getEventKey_absent_returnsEmpty() {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
 
-        Optional<String> result = KafkaMessageHeaders.getMessageId(record);
+        Optional<String> result = KafkaMessageHeaders.getEventKey(record);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getEventId_present_returnsValue() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
+        record.headers().add(new RecordHeader(KafkaMessageHeaders.EVENT_ID, "id-456".getBytes(StandardCharsets.UTF_8)));
+
+        Optional<String> result = KafkaMessageHeaders.getEventId(record);
+
+        assertThat(result).contains("id-456");
+    }
+
+    @Test
+    void getEventId_absent_returnsEmpty() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
+
+        Optional<String> result = KafkaMessageHeaders.getEventId(record);
 
         assertThat(result).isEmpty();
     }
@@ -57,5 +76,43 @@ class KafkaMessageHeadersTest {
 
         assertThatThrownBy(() -> KafkaMessageHeaders.getFailCount(record))
                 .isInstanceOf(NumberFormatException.class);
+    }
+
+    @Test
+    void getServiceName_present_returnsValue() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
+        record.headers().add(new RecordHeader(KafkaMessageHeaders.SERVICE_NAME, "order-service".getBytes(StandardCharsets.UTF_8)));
+
+        Optional<String> result = KafkaMessageHeaders.getServiceName(record);
+
+        assertThat(result).contains("order-service");
+    }
+
+    @Test
+    void getServiceName_absent_returnsEmpty() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
+
+        Optional<String> result = KafkaMessageHeaders.getServiceName(record);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getDomain_present_returnsValue() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
+        record.headers().add(new RecordHeader(KafkaMessageHeaders.DOMAIN, "commerce".getBytes(StandardCharsets.UTF_8)));
+
+        Optional<String> result = KafkaMessageHeaders.getDomain(record);
+
+        assertThat(result).contains("commerce");
+    }
+
+    @Test
+    void getDomain_absent_returnsEmpty() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "value");
+
+        Optional<String> result = KafkaMessageHeaders.getDomain(record);
+
+        assertThat(result).isEmpty();
     }
 }

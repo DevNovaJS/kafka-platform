@@ -37,8 +37,8 @@ class DltConsumerTest {
 
     @Test
     void consume_newMessage_savesAsPending() {
-        ConsumerRecord<String, String> record = createRecord("msg-001");
-        when(dltMessageRepository.findByMessageId("msg-001")).thenReturn(Optional.empty());
+        ConsumerRecord<String, String> record = createRecord("key-001", "id-001");
+        when(dltMessageRepository.findByEventKeyAndEventId("key-001", "id-001")).thenReturn(Optional.empty());
 
         dltConsumer.consume(record, "order");
 
@@ -46,19 +46,22 @@ class DltConsumerTest {
         verify(dltMessageRepository).save(captor.capture());
 
         DltMessage saved = captor.getValue();
-        assertThat(saved.getMessageId()).isEqualTo("msg-001");
+        assertThat(saved.getEventKey()).isEqualTo("key-001");
+        assertThat(saved.getEventId()).isEqualTo("id-001");
+        assertThat(saved.getServiceName()).isEqualTo("order-service");
+        assertThat(saved.getDomain()).isEqualTo("commerce");
         assertThat(saved.getFailCount()).isEqualTo(1);
         assertThat(saved.getStatus()).isEqualTo(DltMessageStatus.PENDING);
     }
 
     @Test
     void consume_existingMessage_incrementsAndStaysPending() {
-        ConsumerRecord<String, String> record = createRecord("msg-002");
-        DltMessage existing = DltMessage.of("msg-002", "order", record);
+        ConsumerRecord<String, String> record = createRecord("key-002", "id-002");
+        DltMessage existing = DltMessage.of("key-002", "id-002", "order-service", "commerce", "order", record);
         existing.incrementFailCount(); // failCount = 1
         existing.updateStatus(DltMessageStatus.PENDING);
 
-        when(dltMessageRepository.findByMessageId("msg-002")).thenReturn(Optional.of(existing));
+        when(dltMessageRepository.findByEventKeyAndEventId("key-002", "id-002")).thenReturn(Optional.of(existing));
 
         dltConsumer.consume(record, "order");
 
@@ -72,12 +75,12 @@ class DltConsumerTest {
 
     @Test
     void consume_failCountReachesMax_permanentlyFailed() {
-        ConsumerRecord<String, String> record = createRecord("msg-003");
-        DltMessage existing = DltMessage.of("msg-003", "order", record);
+        ConsumerRecord<String, String> record = createRecord("key-003", "id-003");
+        DltMessage existing = DltMessage.of("key-003", "id-003", "order-service", "commerce", "order", record);
         existing.incrementFailCount(); // 1
         existing.incrementFailCount(); // 2
 
-        when(dltMessageRepository.findByMessageId("msg-003")).thenReturn(Optional.of(existing));
+        when(dltMessageRepository.findByEventKeyAndEventId("key-003", "id-003")).thenReturn(Optional.of(existing));
 
         dltConsumer.consume(record, "order");
 
@@ -91,13 +94,13 @@ class DltConsumerTest {
 
     @Test
     void consume_failCountExceedsMax_permanentlyFailed() {
-        ConsumerRecord<String, String> record = createRecord("msg-004");
-        DltMessage existing = DltMessage.of("msg-004", "order", record);
+        ConsumerRecord<String, String> record = createRecord("key-004", "id-004");
+        DltMessage existing = DltMessage.of("key-004", "id-004", "order-service", "commerce", "order", record);
         for (int i = 0; i < 5; i++) {
             existing.incrementFailCount();
         }
 
-        when(dltMessageRepository.findByMessageId("msg-004")).thenReturn(Optional.of(existing));
+        when(dltMessageRepository.findByEventKeyAndEventId("key-004", "id-004")).thenReturn(Optional.of(existing));
 
         dltConsumer.consume(record, "order");
 
@@ -109,22 +112,34 @@ class DltConsumerTest {
     }
 
     @Test
-    void consume_missingMessageIdHeader_usesUnknown() {
+    void consume_missingHeaders_usesUnknown() {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("order-DLT", 0, 0L, null, "payload");
-        // No X-Message-Id header added
-        when(dltMessageRepository.findByMessageId("unknown")).thenReturn(Optional.empty());
+        // No X-Event-Key/X-Event-Id headers
+        when(dltMessageRepository.findByEventKeyAndEventId("unknown", "unknown")).thenReturn(Optional.empty());
 
         dltConsumer.consume(record, "order");
 
-        verify(dltMessageRepository).findByMessageId("unknown");
+        verify(dltMessageRepository).findByEventKeyAndEventId("unknown", "unknown");
         verify(dltMessageRepository).save(any(DltMessage.class));
     }
 
-    private ConsumerRecord<String, String> createRecord(String messageId) {
+    private ConsumerRecord<String, String> createRecord(String eventKey, String eventId) {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("order-DLT", 0, 0L, null, "{\"data\":\"test\"}");
         record.headers().add(new RecordHeader(
-                KafkaMessageHeaders.MESSAGE_ID,
-                messageId.getBytes(StandardCharsets.UTF_8)
+                KafkaMessageHeaders.EVENT_KEY,
+                eventKey.getBytes(StandardCharsets.UTF_8)
+        ));
+        record.headers().add(new RecordHeader(
+                KafkaMessageHeaders.EVENT_ID,
+                eventId.getBytes(StandardCharsets.UTF_8)
+        ));
+        record.headers().add(new RecordHeader(
+                KafkaMessageHeaders.SERVICE_NAME,
+                "order-service".getBytes(StandardCharsets.UTF_8)
+        ));
+        record.headers().add(new RecordHeader(
+                KafkaMessageHeaders.DOMAIN,
+                "commerce".getBytes(StandardCharsets.UTF_8)
         ));
         return record;
     }

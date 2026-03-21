@@ -5,6 +5,7 @@ import com.custom.kafka.common.history.MessageHistory;
 import com.custom.kafka.common.history.MessageHistoryRepository;
 import com.custom.kafka.common.history.MessageHistoryStatus;
 import com.custom.kafka.common.notification.SlackNotifier;
+import com.custom.kafka.common.registry.MetadataRegistryService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -35,6 +36,9 @@ class KafkaMessageProcessingAspectTest {
     private SlackNotifier slackNotifier;
 
     @Mock
+    private MetadataRegistryService metadataRegistryService;
+
+    @Mock
     private ProceedingJoinPoint joinPoint;
 
     private final ObjectMapper objectMapper = JsonMapper.builder().build();
@@ -43,12 +47,12 @@ class KafkaMessageProcessingAspectTest {
     void duplicateMessage_savesSkippedAndReturnsNull() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper
+                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
         );
-        ConsumerRecord<String, String> record = createRecord("msg-1", 0,
-                "{\"messageId\":\"msg-1\",\"payload\":{}}");
+        ConsumerRecord<String, String> record = createRecord("key-1", "id-1", 0,
+                "{\"eventKey\":\"key-1\",\"eventId\":\"id-1\",\"payload\":{}}");
 
-        when(messageHistoryRepository.existsByMessageIdAndFailCount("msg-1", 0)).thenReturn(true);
+        when(messageHistoryRepository.existsByEventKeyAndEventIdAndFailCount("key-1", "id-1", 0)).thenReturn(true);
 
         // when
         Object result = aspect.around(joinPoint, record);
@@ -60,19 +64,20 @@ class KafkaMessageProcessingAspectTest {
         ArgumentCaptor<MessageHistory> captor = ArgumentCaptor.forClass(MessageHistory.class);
         verify(messageHistoryRepository).save(captor.capture());
         assertThat(captor.getValue().status()).isEqualTo(MessageHistoryStatus.SKIPPED);
-        assertThat(captor.getValue().messageId()).isEqualTo("msg-1");
+        assertThat(captor.getValue().eventKey()).isEqualTo("key-1");
+        assertThat(captor.getValue().eventId()).isEqualTo("id-1");
     }
 
     @Test
     void successfulProcessing_savesSuccessStatus() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper
+                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
         );
-        ConsumerRecord<String, String> record = createRecord("msg-2", 0,
-                "{\"messageId\":\"msg-2\",\"payload\":{}}");
+        ConsumerRecord<String, String> record = createRecord("key-2", "id-2", 0,
+                "{\"eventKey\":\"key-2\",\"eventId\":\"id-2\",\"payload\":{}}");
 
-        when(messageHistoryRepository.existsByMessageIdAndFailCount("msg-2", 0)).thenReturn(false);
+        when(messageHistoryRepository.existsByEventKeyAndEventIdAndFailCount("key-2", "id-2", 0)).thenReturn(false);
         when(joinPoint.proceed()).thenReturn("ok");
 
         // when
@@ -84,20 +89,48 @@ class KafkaMessageProcessingAspectTest {
         ArgumentCaptor<MessageHistory> captor = ArgumentCaptor.forClass(MessageHistory.class);
         verify(messageHistoryRepository).save(captor.capture());
         assertThat(captor.getValue().status()).isEqualTo(MessageHistoryStatus.SUCCESS);
-        assertThat(captor.getValue().messageId()).isEqualTo("msg-2");
+        assertThat(captor.getValue().eventKey()).isEqualTo("key-2");
+        assertThat(captor.getValue().eventId()).isEqualTo("id-2");
+
+        verify(metadataRegistryService).registerIfNew("unknown", "unknown");
+    }
+
+    @Test
+    void successfulProcessing_withServiceNameAndDomain_registersMetadata() throws Throwable {
+        // given
+        KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
+                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+        );
+        ConsumerRecord<String, String> record = createRecordWithMetadata("key-5", "id-5", 0,
+                "{\"eventKey\":\"key-5\",\"eventId\":\"id-5\",\"payload\":{}}",
+                "order-service", "commerce");
+
+        when(messageHistoryRepository.existsByEventKeyAndEventIdAndFailCount("key-5", "id-5", 0)).thenReturn(false);
+        when(joinPoint.proceed()).thenReturn("ok");
+
+        // when
+        aspect.around(joinPoint, record);
+
+        // then
+        verify(metadataRegistryService).registerIfNew("order-service", "commerce");
+
+        ArgumentCaptor<MessageHistory> captor = ArgumentCaptor.forClass(MessageHistory.class);
+        verify(messageHistoryRepository).save(captor.capture());
+        assertThat(captor.getValue().serviceName()).isEqualTo("order-service");
+        assertThat(captor.getValue().domain()).isEqualTo("commerce");
     }
 
     @Test
     void failedProcessing_savesFailedAndSendsDltAndNotifiesSlack() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper
+                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
         );
-        ConsumerRecord<String, String> record = createRecord("msg-3", 1,
-                "{\"messageId\":\"msg-3\",\"payload\":{}}");
+        ConsumerRecord<String, String> record = createRecord("key-3", "id-3", 1,
+                "{\"eventKey\":\"key-3\",\"eventId\":\"id-3\",\"payload\":{}}");
         RuntimeException error = new RuntimeException("processing error");
 
-        when(messageHistoryRepository.existsByMessageIdAndFailCount("msg-3", 1)).thenReturn(false);
+        when(messageHistoryRepository.existsByEventKeyAndEventIdAndFailCount("key-3", "id-3", 1)).thenReturn(false);
         when(joinPoint.proceed()).thenThrow(error);
 
         // when
@@ -111,59 +144,72 @@ class KafkaMessageProcessingAspectTest {
         assertThat(captor.getValue().status()).isEqualTo(MessageHistoryStatus.FAILED);
         assertThat(captor.getValue().errorMessage()).isEqualTo("processing error");
 
-        verify(dltSender).send("msg-3", 1, record);
-        verify(slackNotifier).sendError(eq("msg-3"), eq(1), eq(record), eq(error));
+        verify(dltSender).send("key-3", "id-3", 1, record);
+        verify(slackNotifier).sendError(eq("key-3"), eq("id-3"), eq(1), eq(record), eq(error));
     }
 
     @Test
-    void failedProcessing_withNullMessageId_skipsDltAndSlack() throws Throwable {
-        // given — invalid JSON payload, messageId extraction fails
+    void failedProcessing_withNullEventKey_skipsDltAndSlack() throws Throwable {
+        // given — invalid JSON payload, eventKey/eventId extraction fails
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper
+                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
         );
-        ConsumerRecord<String, String> record = createRecord(null, 0, "invalid-json");
+        ConsumerRecord<String, String> record = createRecord(null, null, 0, "invalid-json");
 
         // when
         Object result = aspect.around(joinPoint, record);
 
         // then
         assertThat(result).isNull();
-        verify(dltSender, never()).send(anyString(), anyInt(), any());
-        verify(slackNotifier, never()).sendError(anyString(), anyInt(), any(), any());
+        verify(dltSender, never()).send(anyString(), anyString(), anyInt(), any());
+        verify(slackNotifier, never()).sendError(anyString(), anyString(), anyInt(), any(), any());
     }
 
     @Test
     void withFailCount_extractsFromHeader() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper
+                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
         );
-        ConsumerRecord<String, String> record = createRecord("msg-4", 2,
-                "{\"messageId\":\"msg-4\",\"payload\":{}}");
+        ConsumerRecord<String, String> record = createRecord("key-4", "id-4", 2,
+                "{\"eventKey\":\"key-4\",\"eventId\":\"id-4\",\"payload\":{}}");
 
-        when(messageHistoryRepository.existsByMessageIdAndFailCount("msg-4", 2)).thenReturn(false);
+        when(messageHistoryRepository.existsByEventKeyAndEventIdAndFailCount("key-4", "id-4", 2)).thenReturn(false);
         when(joinPoint.proceed()).thenReturn("ok");
 
         // when
         aspect.around(joinPoint, record);
 
         // then
-        verify(messageHistoryRepository).existsByMessageIdAndFailCount("msg-4", 2);
+        verify(messageHistoryRepository).existsByEventKeyAndEventIdAndFailCount("key-4", "id-4", 2);
 
         ArgumentCaptor<MessageHistory> captor = ArgumentCaptor.forClass(MessageHistory.class);
         verify(messageHistoryRepository).save(captor.capture());
         assertThat(captor.getValue().failCount()).isEqualTo(2);
     }
 
-    private ConsumerRecord<String, String> createRecord(String messageId, int failCount, String payload) {
+    private ConsumerRecord<String, String> createRecord(String eventKey, String eventId, int failCount, String payload) {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("test-topic", 0, 0L, "key", payload);
-        if (messageId != null) {
-            record.headers().add(new RecordHeader("X-Message-Id", messageId.getBytes(StandardCharsets.UTF_8)));
+        if (eventKey != null) {
+            record.headers().add(new RecordHeader("X-Event-Key", eventKey.getBytes(StandardCharsets.UTF_8)));
+        }
+        if (eventId != null) {
+            record.headers().add(new RecordHeader("X-Event-Id", eventId.getBytes(StandardCharsets.UTF_8)));
         }
         if (failCount > 0) {
             record.headers().add(new RecordHeader("X-Fail-Count",
                     String.valueOf(failCount).getBytes(StandardCharsets.UTF_8)));
         }
+        return record;
+    }
+
+    private ConsumerRecord<String, String> createRecordWithMetadata(
+            String eventKey, String eventId, int failCount, String payload,
+            String serviceName, String domain
+    ) {
+        ConsumerRecord<String, String> record = createRecord(eventKey, eventId, failCount, payload);
+        record.headers().add(new RecordHeader("X-Service-Name", serviceName.getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("X-Domain", domain.getBytes(StandardCharsets.UTF_8)));
         return record;
     }
 }

@@ -36,7 +36,7 @@ class SlackNotifierTest {
         ReflectionTestUtils.setField(slackNotifier, "webhookUrl", "");
 
         ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "payload");
-        slackNotifier.sendError("msg-1", 1, record, new RuntimeException("test error"));
+        slackNotifier.sendError("key-1", "id-1", 1, record, new RuntimeException("test error"));
 
         verifyNoInteractions(restClient);
     }
@@ -47,7 +47,7 @@ class SlackNotifierTest {
         stubRestClientChain();
 
         ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "payload");
-        slackNotifier.sendError("msg-1", 1, record, new RuntimeException("test error"));
+        slackNotifier.sendError("key-1", "id-1", 1, record, new RuntimeException("test error"));
 
         verify(restClient).post();
     }

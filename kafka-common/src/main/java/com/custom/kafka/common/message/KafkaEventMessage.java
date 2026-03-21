@@ -1,6 +1,7 @@
 package com.custom.kafka.common.message;
 
 public record KafkaEventMessage<T>(
-        String messageId,
+        String eventKey,
+        String eventId,
         T payload
 ) {}

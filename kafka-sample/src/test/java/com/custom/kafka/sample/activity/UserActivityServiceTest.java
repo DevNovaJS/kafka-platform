@@ -39,7 +39,7 @@ class UserActivityServiceTest {
                 .thenReturn(UpdateResult.acknowledged(1, 1L, null));
 
         // when
-        userActivityService.process(event, "msg-1");
+        userActivityService.process(event, "key-1", "id-1");
 
         // then
         verify(mongoTemplate).upsert(any(Query.class), any(Update.class), eq(UserActivityLog.class));
@@ -47,7 +47,7 @@ class UserActivityServiceTest {
     }
 
     @Test
-    void process_logUpsert_usesMessageIdAsCriteria() {
+    void process_logUpsert_usesEventKeyAndEventIdAsCriteria() {
         // given
         UserActivityEvent event = new UserActivityEvent(
                 "user-2", "sess-2", ActivityType.CLICK, "btn-buy", null
@@ -56,15 +56,17 @@ class UserActivityServiceTest {
                 .thenReturn(UpdateResult.acknowledged(1, 1L, null));
 
         // when
-        userActivityService.process(event, "msg-unique");
+        userActivityService.process(event, "key-unique", "id-unique");
 
-        // then — first upsert call is for UserActivityLog with messageId criteria
+        // then — first upsert call is for UserActivityLog with eventKey/eventId criteria
         ArgumentCaptor<Query> queryCaptor = ArgumentCaptor.forClass(Query.class);
         verify(mongoTemplate, times(2)).upsert(queryCaptor.capture(), any(Update.class), any(Class.class));
 
         Query logQuery = queryCaptor.getAllValues().getFirst();
-        assertThat(logQuery.toString()).contains("messageId");
-        assertThat(logQuery.toString()).contains("msg-unique");
+        assertThat(logQuery.toString()).contains("eventKey");
+        assertThat(logQuery.toString()).contains("key-unique");
+        assertThat(logQuery.toString()).contains("eventId");
+        assertThat(logQuery.toString()).contains("id-unique");
     }
 
     @Test
@@ -77,7 +79,7 @@ class UserActivityServiceTest {
                 .thenReturn(UpdateResult.acknowledged(1, 1L, null));
 
         // when
-        userActivityService.process(event, "msg-3");
+        userActivityService.process(event, "key-3", "id-3");
 
         // then — second upsert call is for UserActivityStats
         ArgumentCaptor<Query> queryCaptor = ArgumentCaptor.forClass(Query.class);

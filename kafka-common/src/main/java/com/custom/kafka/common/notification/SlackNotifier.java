@@ -19,21 +19,22 @@ public class SlackNotifier {
     private final RestClient restClient;
 
     @Async
-    public void sendError(String messageId, int failCount, ConsumerRecord<String, String> record, Exception e) {
+    public void sendError(String eventKey, String eventId, int failCount, ConsumerRecord<String, String> record, Exception e) {
         if (webhookUrl.isBlank()) {
-            log.error("Slack webhook URL 미설정 — 에러 알림 스킵: messageId={}", messageId);
+            log.error("Slack webhook URL 미설정 — 에러 알림 스킵: eventKey={}, eventId={}", eventKey, eventId);
             return;
         }
 
         String text = """
                 *[Kafka 처리 오류]*
                 • Topic: `%s` (partition=%d, offset=%d)
-                • MessageId: `%s`
+                • EventKey: `%s`
+                • EventId: `%s`
                 • FailCount: %d
                 • Error: %s
                 """.formatted(
                 record.topic(), record.partition(), record.offset(),
-                messageId, failCount,
+                eventKey, eventId, failCount,
                 e.getMessage()
         );
 

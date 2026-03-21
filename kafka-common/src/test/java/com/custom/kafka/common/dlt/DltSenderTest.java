@@ -4,6 +4,7 @@ import com.custom.kafka.common.message.KafkaMessageHeaders;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,7 +35,7 @@ class DltSenderTest {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("order", 0, 0L, "key", "payload");
         when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(CompletableFuture.completedFuture(null));
 
-        dltSender.send("msg-1", 0, record);
+        dltSender.send("key-1", "id-1", 0, record);
 
         ArgumentCaptor<ProducerRecord<String, String>> captor = ArgumentCaptor.forClass(ProducerRecord.class);
         verify(kafkaTemplate).send(captor.capture());
@@ -47,15 +48,33 @@ class DltSenderTest {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("order", 0, 0L, "key", "payload");
         when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(CompletableFuture.completedFuture(null));
 
-        dltSender.send("msg-1", 2, record);
+        dltSender.send("key-1", "id-1", 2, record);
 
         ArgumentCaptor<ProducerRecord<String, String>> captor = ArgumentCaptor.forClass(ProducerRecord.class);
         verify(kafkaTemplate).send(captor.capture());
         ProducerRecord<String, String> sent = captor.getValue();
 
-        assertThat(headerValue(sent, KafkaMessageHeaders.MESSAGE_ID)).isEqualTo("msg-1");
+        assertThat(headerValue(sent, KafkaMessageHeaders.EVENT_KEY)).isEqualTo("key-1");
+        assertThat(headerValue(sent, KafkaMessageHeaders.EVENT_ID)).isEqualTo("id-1");
         assertThat(headerValue(sent, KafkaMessageHeaders.FAIL_COUNT)).isEqualTo("3");
         assertThat(headerValue(sent, KafkaMessageHeaders.ORIGINAL_TOPIC)).isEqualTo("order");
+    }
+
+    @Test
+    void send_copiesServiceNameAndDomainHeaders() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("order", 0, 0L, "key", "payload");
+        record.headers().add(new RecordHeader(KafkaMessageHeaders.SERVICE_NAME, "order-service".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader(KafkaMessageHeaders.DOMAIN, "commerce".getBytes(StandardCharsets.UTF_8)));
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(CompletableFuture.completedFuture(null));
+
+        dltSender.send("key-1", "id-1", 0, record);
+
+        ArgumentCaptor<ProducerRecord<String, String>> captor = ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaTemplate).send(captor.capture());
+        ProducerRecord<String, String> sent = captor.getValue();
+
+        assertThat(headerValue(sent, KafkaMessageHeaders.SERVICE_NAME)).isEqualTo("order-service");
+        assertThat(headerValue(sent, KafkaMessageHeaders.DOMAIN)).isEqualTo("commerce");
     }
 
     @Test
@@ -63,7 +82,7 @@ class DltSenderTest {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("order", 0, 0L, "key", "{\"orderId\":123}");
         when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(CompletableFuture.completedFuture(null));
 
-        dltSender.send("msg-1", 0, record);
+        dltSender.send("key-1", "id-1", 0, record);
 
         ArgumentCaptor<ProducerRecord<String, String>> captor = ArgumentCaptor.forClass(ProducerRecord.class);
         verify(kafkaTemplate).send(captor.capture());

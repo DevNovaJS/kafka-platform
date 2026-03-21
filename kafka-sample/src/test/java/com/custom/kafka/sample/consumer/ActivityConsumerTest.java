@@ -34,7 +34,8 @@ class ActivityConsumerTest {
         ActivityConsumer consumer = new ActivityConsumer(objectMapper, userActivityService);
         String payload = """
                 {
-                    "messageId": "msg-1",
+                    "eventKey": "key-1",
+                    "eventId": "id-1",
                     "payload": {
                         "userId": "user-123",
                         "sessionId": "sess-456",
@@ -51,7 +52,7 @@ class ActivityConsumerTest {
 
         // then
         ArgumentCaptor<UserActivityEvent> eventCaptor = ArgumentCaptor.forClass(UserActivityEvent.class);
-        verify(userActivityService).process(eventCaptor.capture(), eq("msg-1"));
+        verify(userActivityService).process(eventCaptor.capture(), eq("key-1"), eq("id-1"));
 
         UserActivityEvent event = eventCaptor.getValue();
         assertThat(event.userId()).isEqualTo("user-123");
@@ -67,7 +68,8 @@ class ActivityConsumerTest {
         ActivityConsumer consumer = new ActivityConsumer(objectMapper, userActivityService);
         String payload = """
                 {
-                    "messageId": "msg-2",
+                    "eventKey": "key-2",
+                    "eventId": "id-2",
                     "payload": {
                         "userId": "user-100",
                         "sessionId": "sess-200",
@@ -84,7 +86,7 @@ class ActivityConsumerTest {
 
         // then
         ArgumentCaptor<UserActivityEvent> eventCaptor = ArgumentCaptor.forClass(UserActivityEvent.class);
-        verify(userActivityService).process(eventCaptor.capture(), eq("msg-2"));
+        verify(userActivityService).process(eventCaptor.capture(), eq("key-2"), eq("id-2"));
 
         assertThat(eventCaptor.getValue().activityType()).isEqualTo(ActivityType.CLICK);
         assertThat(eventCaptor.getValue().targetId()).isEqualTo("btn-submit");
@@ -103,7 +105,8 @@ class ActivityConsumerTest {
 
     private ConsumerRecord<String, String> createRecord(String payload) {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("activity-events", 0, 0L, "key", payload);
-        record.headers().add(new RecordHeader("X-Message-Id", "msg-test".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("X-Event-Key", "key-test".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader("X-Event-Id", "id-test".getBytes(StandardCharsets.UTF_8)));
         return record;
     }
 }

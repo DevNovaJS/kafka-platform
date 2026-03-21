@@ -38,6 +38,6 @@ public class ActivityConsumer {
                 event.targetId()
         );
 
-        userActivityService.process(event, message.messageId());
+        userActivityService.process(event, message.eventKey(), message.eventId());
     }
 }

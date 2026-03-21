@@ -18,15 +18,15 @@ import java.nio.charset.StandardCharsets;
 public class DltSender {
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public void send(String messageId, int failCount, ConsumerRecord<String, String> record) {
+    public void send(String eventKey, String eventId, int failCount, ConsumerRecord<String, String> record) {
         int nextFailCount = failCount + 1;
         String dltTopic = record.topic() + CommonConstants.DLT_TOPIC_SUFFIX;
-        ProducerRecord<String, String> dltRecord = this.buildDltRecord(dltTopic, record, messageId, nextFailCount);
+        ProducerRecord<String, String> dltRecord = this.buildDltRecord(dltTopic, record, eventKey, eventId, nextFailCount);
 
         kafkaTemplate.send(dltRecord)
                 .whenComplete((_, ex) -> {
                     if (ex != null) {
-                        log.error("DLT 발송 실패: topic={}, messageId={}", dltTopic, messageId, ex);
+                        log.error("DLT 발송 실패: topic={}, eventKey={}, eventId={}", dltTopic, eventKey, eventId, ex);
                     }
                 });
     }
@@ -34,13 +34,24 @@ public class DltSender {
     private ProducerRecord<String, String> buildDltRecord(
             String dltTopic,
             ConsumerRecord<String, String> origin,
-            String messageId,
+            String eventKey,
+            String eventId,
             int nextFailCount
     ) {
         ProducerRecord<String, String> record = new ProducerRecord<>(dltTopic, null, origin.key(), origin.value());
-        record.headers().add(header(KafkaMessageHeaders.MESSAGE_ID, messageId));
+        record.headers().add(header(KafkaMessageHeaders.EVENT_KEY, eventKey));
+        record.headers().add(header(KafkaMessageHeaders.EVENT_ID, eventId));
         record.headers().add(header(KafkaMessageHeaders.FAIL_COUNT, String.valueOf(nextFailCount)));
         record.headers().add(header(KafkaMessageHeaders.ORIGINAL_TOPIC, origin.topic()));
+
+        // 원본 레코드에서 serviceName/domain 헤더 복사
+        KafkaMessageHeaders.getServiceName(origin).ifPresent(
+                sn -> record.headers().add(header(KafkaMessageHeaders.SERVICE_NAME, sn))
+        );
+        KafkaMessageHeaders.getDomain(origin).ifPresent(
+                d -> record.headers().add(header(KafkaMessageHeaders.DOMAIN, d))
+        );
+
         return record;
     }
 

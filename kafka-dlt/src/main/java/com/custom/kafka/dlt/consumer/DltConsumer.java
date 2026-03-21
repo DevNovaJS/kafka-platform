@@ -32,10 +32,13 @@ public class DltConsumer {
             ConsumerRecord<String, String> record,
             @Header(KafkaMessageHeaders.ORIGINAL_TOPIC) String originalTopic
     ) {
-        String messageId = KafkaMessageHeaders.getMessageId(record).orElse("unknown");
+        String eventKey = KafkaMessageHeaders.getEventKey(record).orElse("unknown");
+        String eventId = KafkaMessageHeaders.getEventId(record).orElse("unknown");
+        String serviceName = KafkaMessageHeaders.getServiceName(record).orElse("unknown");
+        String domain = KafkaMessageHeaders.getDomain(record).orElse("unknown");
 
-        DltMessage dltMessage = dltMessageRepository.findByMessageId(messageId)
-                .orElseGet(() -> DltMessage.of(messageId, originalTopic, record));
+        DltMessage dltMessage = dltMessageRepository.findByEventKeyAndEventId(eventKey, eventId)
+                .orElseGet(() -> DltMessage.of(eventKey, eventId, serviceName, domain, originalTopic, record));
 
         dltMessage.incrementFailCount();
         dltMessage.updateStatus(this.resolveStatus(dltMessage.getFailCount()));

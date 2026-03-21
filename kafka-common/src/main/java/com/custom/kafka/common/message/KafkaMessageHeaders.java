@@ -10,18 +10,33 @@ import java.util.Optional;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class KafkaMessageHeaders {
-    public static final String MESSAGE_ID = "X-Message-Id";
+    public static final String EVENT_KEY = "X-Event-Key";
+    public static final String EVENT_ID = "X-Event-Id";
     public static final String FAIL_COUNT = "X-Fail-Count";
     public static final String ORIGINAL_TOPIC = "X-Original-Topic";
+    public static final String SERVICE_NAME = "X-Service-Name";
+    public static final String DOMAIN = "X-Domain";
 
-    public static Optional<String> getMessageId(ConsumerRecord<?, ?> record) {
-        return getHeaderValue(record, MESSAGE_ID);
+    public static Optional<String> getEventKey(ConsumerRecord<?, ?> record) {
+        return getHeaderValue(record, EVENT_KEY);
+    }
+
+    public static Optional<String> getEventId(ConsumerRecord<?, ?> record) {
+        return getHeaderValue(record, EVENT_ID);
     }
 
     public static int getFailCount(ConsumerRecord<?, ?> record) {
         return getHeaderValue(record, FAIL_COUNT)
                 .map(Integer::parseInt)
                 .orElse(0);
+    }
+
+    public static Optional<String> getServiceName(ConsumerRecord<?, ?> record) {
+        return getHeaderValue(record, SERVICE_NAME);
+    }
+
+    public static Optional<String> getDomain(ConsumerRecord<?, ?> record) {
+        return getHeaderValue(record, DOMAIN);
     }
 
     private static Optional<String> getHeaderValue(ConsumerRecord<?, ?> record, String headerName) {

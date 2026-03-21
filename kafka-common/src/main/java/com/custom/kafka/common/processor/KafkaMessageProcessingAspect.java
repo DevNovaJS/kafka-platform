@@ -7,6 +7,7 @@ import com.custom.kafka.common.history.MessageHistoryStatus;
 import com.custom.kafka.common.message.KafkaEventMessage;
 import com.custom.kafka.common.message.KafkaMessageHeaders;
 import com.custom.kafka.common.notification.SlackNotifier;
+import com.custom.kafka.common.registry.MetadataRegistryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -27,12 +28,16 @@ public class KafkaMessageProcessingAspect {
     private final DltSender dltSender;
     private final SlackNotifier slackNotifier;
     private final ObjectMapper objectMapper;
+    private final MetadataRegistryService metadataRegistryService;
 
     @Around(value = "@annotation(com.custom.kafka.common.processor.KafkaMessageHandler) && args(record)",
             argNames = "joinPoint,record")
     public Object around(ProceedingJoinPoint joinPoint, ConsumerRecord<String, String> record) throws Throwable {
         int failCount = KafkaMessageHeaders.getFailCount(record);
-        String messageId = null;
+        String serviceName = KafkaMessageHeaders.getServiceName(record).orElse("unknown");
+        String domain = KafkaMessageHeaders.getDomain(record).orElse("unknown");
+        String eventKey = null;
+        String eventId = null;
 
         MessageHistory.MessageHistoryBuilder historyBuilder = MessageHistory.builder()
                 .failCount(failCount)
@@ -40,14 +45,18 @@ public class KafkaMessageProcessingAspect {
                 .partition(record.partition())
                 .offset(record.offset())
                 .payload(record.value())
+                .serviceName(serviceName)
+                .domain(domain)
                 .createdAt(Instant.now());
 
         try {
-            messageId = objectMapper.readValue(record.value(), KafkaEventMessage.class).messageId();
-            historyBuilder.messageId(messageId);
+            KafkaEventMessage<?> eventMessage = objectMapper.readValue(record.value(), KafkaEventMessage.class);
+            eventKey = eventMessage.eventKey();
+            eventId = eventMessage.eventId();
+            historyBuilder.eventKey(eventKey).eventId(eventId);
 
-            if (messageHistoryRepository.existsByMessageIdAndFailCount(messageId, failCount)) {
-                log.info("중복 메시지 스킵: messageId={}, failCount={}", messageId, failCount);
+            if (messageHistoryRepository.existsByEventKeyAndEventIdAndFailCount(eventKey, eventId, failCount)) {
+                log.info("중복 메시지 스킵: eventKey={}, eventId={}, failCount={}", eventKey, eventId, failCount);
 
                 messageHistoryRepository.save(
                         historyBuilder
@@ -65,25 +74,28 @@ public class KafkaMessageProcessingAspect {
                             .build()
             );
 
+            metadataRegistryService.registerIfNew(serviceName, domain);
+
             return result;
         } catch (Exception e) {
             log.error(
-                    "메시지 처리 실패: messageId={}, topic={}, error={}",
-                    messageId,
+                    "메시지 처리 실패: eventKey={}, eventId={}, topic={}, error={}",
+                    eventKey,
+                    eventId,
                     record.topic(),
                     e.getMessage(),
                     e
             );
 
-            if (messageId != null) {
+            if (eventKey != null && eventId != null) {
                 messageHistoryRepository.save(
                         historyBuilder
                                 .status(MessageHistoryStatus.FAILED)
                                 .errorMessage(e.getMessage())
                                 .build()
                 );
-                dltSender.send(messageId, failCount, record);
-                slackNotifier.sendError(messageId, failCount, record, e);
+                dltSender.send(eventKey, eventId, failCount, record);
+                slackNotifier.sendError(eventKey, eventId, failCount, record, e);
             }
 
             return null;

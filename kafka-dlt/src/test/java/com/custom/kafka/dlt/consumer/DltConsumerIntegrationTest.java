@@ -3,6 +3,8 @@ package com.custom.kafka.dlt.consumer;
 import com.custom.kafka.common.history.MessageHistoryRepository;
 import com.custom.kafka.common.history.MessageHistoryService;
 import com.custom.kafka.common.message.KafkaMessageHeaders;
+import com.custom.kafka.common.registry.MetadataRegistryRepository;
+import com.custom.kafka.common.registry.MetadataRegistryService;
 import com.custom.kafka.dlt.document.DltMessage;
 import com.custom.kafka.dlt.document.DltMessageStatus;
 import com.custom.kafka.dlt.repository.DltMessageRepository;
@@ -45,6 +47,12 @@ class DltConsumerIntegrationTest {
     @MockitoBean
     private MessageHistoryService messageHistoryService;
 
+    @MockitoBean
+    private MetadataRegistryRepository metadataRegistryRepository;
+
+    @MockitoBean
+    private MetadataRegistryService metadataRegistryService;
+
     @DynamicPropertySource
     static void kafkaProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.kafka.bootstrap-servers",
@@ -53,14 +61,20 @@ class DltConsumerIntegrationTest {
 
     @Test
     void kafkaMessage_dispatchedToConsumer_andSavesViaRepository() {
-        when(dltMessageRepository.findByMessageId("msg-int-001")).thenReturn(Optional.empty());
+        when(dltMessageRepository.findByEventKeyAndEventId("key-int-001", "id-int-001")).thenReturn(Optional.empty());
         when(dltMessageRepository.save(any(DltMessage.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ProducerRecord<String, String> record = new ProducerRecord<>("order-DLT", null, null, "{\"orderId\":1}");
         record.headers().add(new RecordHeader(
-                KafkaMessageHeaders.MESSAGE_ID, "msg-int-001".getBytes(StandardCharsets.UTF_8)));
+                KafkaMessageHeaders.EVENT_KEY, "key-int-001".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader(
+                KafkaMessageHeaders.EVENT_ID, "id-int-001".getBytes(StandardCharsets.UTF_8)));
         record.headers().add(new RecordHeader(
                 KafkaMessageHeaders.ORIGINAL_TOPIC, "order".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader(
+                KafkaMessageHeaders.SERVICE_NAME, "order-service".getBytes(StandardCharsets.UTF_8)));
+        record.headers().add(new RecordHeader(
+                KafkaMessageHeaders.DOMAIN, "commerce".getBytes(StandardCharsets.UTF_8)));
 
         kafkaTemplate.send(record);
 
@@ -69,7 +83,8 @@ class DltConsumerIntegrationTest {
             verify(dltMessageRepository, atLeastOnce()).save(captor.capture());
 
             DltMessage saved = captor.getValue();
-            assertThat(saved.getMessageId()).isEqualTo("msg-int-001");
+            assertThat(saved.getEventKey()).isEqualTo("key-int-001");
+            assertThat(saved.getEventId()).isEqualTo("id-int-001");
             assertThat(saved.getOriginalTopic()).isEqualTo("order");
             assertThat(saved.getPayload()).isEqualTo("{\"orderId\":1}");
             assertThat(saved.getFailCount()).isEqualTo(1);

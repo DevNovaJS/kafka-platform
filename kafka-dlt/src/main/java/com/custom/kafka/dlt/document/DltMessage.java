@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -17,11 +19,15 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document("kafka_dlt_message")
+@CompoundIndexes({
+        @CompoundIndex(def = "{'eventKey': 1, 'eventId': 1}", unique = true),
+        @CompoundIndex(def = "{'serviceName': 1, 'domain': 1}")
+})
 public class DltMessage {
     @Id
     private String id;
-    @Indexed(unique = true)
-    private String messageId;
+    private String eventKey;
+    private String eventId;
     @Indexed
     private String originalTopic;
     private String dltTopic;
@@ -31,11 +37,23 @@ public class DltMessage {
     private int failCount;
     @Indexed
     private DltMessageStatus status;
+    private String serviceName;
+    private String domain;
     private Instant receivedAt;
 
-    public static DltMessage of(String messageId, String originalTopic, ConsumerRecord<String, String> record) {
+    public static DltMessage of(
+            String eventKey,
+            String eventId,
+            String serviceName,
+            String domain,
+            String originalTopic,
+            ConsumerRecord<String, String> record
+    ) {
         return DltMessage.builder()
-                .messageId(messageId)
+                .eventKey(eventKey)
+                .eventId(eventId)
+                .serviceName(serviceName)
+                .domain(domain)
                 .originalTopic(originalTopic)
                 .dltTopic(record.topic())
                 .partition(record.partition())

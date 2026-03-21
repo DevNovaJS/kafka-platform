@@ -6,5 +6,5 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 
 public interface DltMessageRepository extends MongoRepository<DltMessage, String> {
-    Optional<DltMessage> findByMessageId(String messageId);
+    Optional<DltMessage> findByEventKeyAndEventId(String eventKey, String eventId);
 }
