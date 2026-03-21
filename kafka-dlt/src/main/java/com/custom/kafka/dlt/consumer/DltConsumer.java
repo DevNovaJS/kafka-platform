@@ -32,8 +32,16 @@ public class DltConsumer {
             ConsumerRecord<String, String> record,
             @Header(KafkaMessageHeaders.ORIGINAL_TOPIC) String originalTopic
     ) {
-        String eventKey = KafkaMessageHeaders.getEventKey(record).orElse("unknown");
-        String eventId = KafkaMessageHeaders.getEventId(record).orElse("unknown");
+        var eventKeyOpt = KafkaMessageHeaders.getEventKey(record);
+        var eventIdOpt = KafkaMessageHeaders.getEventId(record);
+
+        if (eventKeyOpt.isEmpty() || eventIdOpt.isEmpty()) {
+            log.error("필수 헤더 누락으로 DLT 처리 스킵: topic={}, partition={}, offset={}", record.topic(), record.partition(), record.offset());
+            return;
+        }
+
+        String eventKey = eventKeyOpt.get();
+        String eventId = eventIdOpt.get();
         String serviceName = KafkaMessageHeaders.getServiceName(record).orElse("unknown");
         String domain = KafkaMessageHeaders.getDomain(record).orElse("unknown");
 

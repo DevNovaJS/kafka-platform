@@ -3,6 +3,7 @@ package com.custom.kafka.common.registry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -14,7 +15,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class MetadataRegistryServiceTest {
@@ -25,34 +27,13 @@ class MetadataRegistryServiceTest {
     @Mock
     private MetadataRegistryRepository metadataRegistryRepository;
 
-    @Test
-    void init_loadsExistingRegistries() {
-        // given
-        MetadataRegistry existing = MetadataRegistry.builder()
-                .serviceName("order-service")
-                .domain("commerce")
-                .build();
-        when(metadataRegistryRepository.findAll()).thenReturn(List.of(existing));
-
-        MetadataRegistryService service = new MetadataRegistryService(mongoTemplate, metadataRegistryRepository);
-
-        // when
-        service.init();
-
-        // then — registerIfNew should skip known combination (no DB call)
-        service.registerIfNew("order-service", "commerce");
-        verifyNoInteractions(mongoTemplate);
-    }
+    @InjectMocks
+    private MetadataRegistryService metadataRegistryService;
 
     @Test
-    void registerIfNew_newCombination_upsertsToDb() {
-        // given
-        when(metadataRegistryRepository.findAll()).thenReturn(List.of());
-        MetadataRegistryService service = new MetadataRegistryService(mongoTemplate, metadataRegistryRepository);
-        service.init();
-
+    void registerIfNew_upsertsToDb() {
         // when
-        service.registerIfNew("payment-service", "billing");
+        metadataRegistryService.registerIfNew("payment-service", "billing");
 
         // then
         ArgumentCaptor<Query> queryCaptor = ArgumentCaptor.forClass(Query.class);
@@ -64,18 +45,14 @@ class MetadataRegistryServiceTest {
     }
 
     @Test
-    void registerIfNew_sameCombinationTwice_upsertsOnlyOnce() {
-        // given
-        when(metadataRegistryRepository.findAll()).thenReturn(List.of());
-        MetadataRegistryService service = new MetadataRegistryService(mongoTemplate, metadataRegistryRepository);
-        service.init();
-
+    void registerIfNew_sameCombinationTwice_upsertsBothTimes() {
         // when
-        service.registerIfNew("payment-service", "billing");
-        service.registerIfNew("payment-service", "billing");
+        metadataRegistryService.registerIfNew("payment-service", "billing");
+        metadataRegistryService.registerIfNew("payment-service", "billing");
 
-        // then — only one DB call
-        verify(mongoTemplate, times(1)).upsert(any(Query.class), any(Update.class), eq(MetadataRegistry.class));
+        // then — $setOnInsert makes duplicate upserts safe at DB level
+        verify(mongoTemplate, org.mockito.Mockito.times(2))
+                .upsert(any(Query.class), any(Update.class), eq(MetadataRegistry.class));
     }
 
     @Test
@@ -86,10 +63,9 @@ class MetadataRegistryServiceTest {
                 .domain("commerce")
                 .build();
         when(metadataRegistryRepository.findAll()).thenReturn(List.of(registry));
-        MetadataRegistryService service = new MetadataRegistryService(mongoTemplate, metadataRegistryRepository);
 
         // when
-        List<MetadataRegistry> result = service.findAll();
+        List<MetadataRegistry> result = metadataRegistryService.findAll();
 
         // then
         assertThat(result).hasSize(1);

@@ -112,15 +112,12 @@ class DltConsumerTest {
     }
 
     @Test
-    void consume_missingHeaders_usesUnknown() {
+    void consume_missingHeaders_skipsProcessing() {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("order-DLT", 0, 0L, null, "payload");
-        // No X-Event-Key/X-Event-Id headers
-        when(dltMessageRepository.findByEventKeyAndEventId("unknown", "unknown")).thenReturn(Optional.empty());
 
         dltConsumer.consume(record, "order");
 
-        verify(dltMessageRepository).findByEventKeyAndEventId("unknown", "unknown");
-        verify(dltMessageRepository).save(any(DltMessage.class));
+        verifyNoInteractions(dltMessageRepository);
     }
 
     private ConsumerRecord<String, String> createRecord(String eventKey, String eventId) {

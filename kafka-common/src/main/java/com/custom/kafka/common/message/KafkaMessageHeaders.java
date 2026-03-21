@@ -41,7 +41,7 @@ public final class KafkaMessageHeaders {
 
     private static Optional<String> getHeaderValue(ConsumerRecord<?, ?> record, String headerName) {
         Header header = record.headers().lastHeader(headerName);
-        if (header == null) {
+        if (header == null || header.value() == null) {
             return Optional.empty();
         }
 

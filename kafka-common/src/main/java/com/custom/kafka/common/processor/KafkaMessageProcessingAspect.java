@@ -53,7 +53,14 @@ public class KafkaMessageProcessingAspect {
             KafkaEventMessage<?> eventMessage = objectMapper.readValue(record.value(), KafkaEventMessage.class);
             eventKey = eventMessage.eventKey();
             eventId = eventMessage.eventId();
+
+            if (eventKey == null || eventId == null) {
+                log.error("eventKey 또는 eventId가 null — 처리 스킵: topic={}, payload={}", record.topic(), record.value());
+                return null;
+            }
+
             historyBuilder.eventKey(eventKey).eventId(eventId);
+            metadataRegistryService.registerIfNew(serviceName, domain);
 
             if (messageHistoryRepository.existsByEventKeyAndEventIdAndFailCount(eventKey, eventId, failCount)) {
                 log.info("중복 메시지 스킵: eventKey={}, eventId={}, failCount={}", eventKey, eventId, failCount);
@@ -74,8 +81,6 @@ public class KafkaMessageProcessingAspect {
                             .build()
             );
 
-            metadataRegistryService.registerIfNew(serviceName, domain);
-
             return result;
         } catch (Exception e) {
             log.error(
@@ -87,16 +92,19 @@ public class KafkaMessageProcessingAspect {
                     e
             );
 
-            if (eventKey != null && eventId != null) {
-                messageHistoryRepository.save(
-                        historyBuilder
-                                .status(MessageHistoryStatus.FAILED)
-                                .errorMessage(e.getMessage())
-                                .build()
-                );
-                dltSender.send(eventKey, eventId, failCount, record);
-                slackNotifier.sendError(eventKey, eventId, failCount, record, e);
+            if (eventKey == null || eventId == null) {
+                return null;
             }
+
+            messageHistoryRepository.save(
+                    historyBuilder
+                            .status(MessageHistoryStatus.FAILED)
+                            .errorMessage(e.getMessage())
+                            .build()
+            );
+
+            dltSender.send(eventKey, eventId, failCount, record);
+            slackNotifier.sendError(eventKey, eventId, failCount, record, e);
 
             return null;
         }

@@ -59,6 +59,7 @@ public class DltMessage {
                 .partition(record.partition())
                 .offset(record.offset())
                 .payload(record.value())
+                .status(DltMessageStatus.PENDING)
                 .receivedAt(Instant.now())
                 .build();
     }

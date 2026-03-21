@@ -66,6 +66,8 @@ class KafkaMessageProcessingAspectTest {
         assertThat(captor.getValue().status()).isEqualTo(MessageHistoryStatus.SKIPPED);
         assertThat(captor.getValue().eventKey()).isEqualTo("key-1");
         assertThat(captor.getValue().eventId()).isEqualTo("id-1");
+
+        verify(metadataRegistryService).registerIfNew("unknown", "unknown");
     }
 
     @Test
@@ -146,10 +148,11 @@ class KafkaMessageProcessingAspectTest {
 
         verify(dltSender).send("key-3", "id-3", 1, record);
         verify(slackNotifier).sendError(eq("key-3"), eq("id-3"), eq(1), eq(record), eq(error));
+        verify(metadataRegistryService).registerIfNew("unknown", "unknown");
     }
 
     @Test
-    void failedProcessing_withNullEventKey_skipsDltAndSlack() throws Throwable {
+    void invalidJson_skipsAllProcessing() throws Throwable {
         // given — invalid JSON payload, eventKey/eventId extraction fails
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
                 messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
@@ -161,6 +164,27 @@ class KafkaMessageProcessingAspectTest {
 
         // then
         assertThat(result).isNull();
+        verifyNoInteractions(messageHistoryRepository);
+        verify(dltSender, never()).send(anyString(), anyString(), anyInt(), any());
+        verify(slackNotifier, never()).sendError(anyString(), anyString(), anyInt(), any(), any());
+    }
+
+    @Test
+    void nullEventKey_skipsAllProcessing() throws Throwable {
+        // given — JSON is valid but eventKey is null
+        KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
+                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+        );
+        ConsumerRecord<String, String> record = createRecord(null, null, 0,
+                "{\"eventKey\":null,\"eventId\":null,\"payload\":{}}");
+
+        // when
+        Object result = aspect.around(joinPoint, record);
+
+        // then
+        assertThat(result).isNull();
+        verify(joinPoint, never()).proceed();
+        verifyNoInteractions(messageHistoryRepository);
         verify(dltSender, never()).send(anyString(), anyString(), anyInt(), any());
         verify(slackNotifier, never()).sendError(anyString(), anyString(), anyInt(), any(), any());
     }

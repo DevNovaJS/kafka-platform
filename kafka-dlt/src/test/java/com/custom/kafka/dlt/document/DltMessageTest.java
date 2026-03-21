@@ -28,7 +28,7 @@ class DltMessageTest {
         assertThat(message.getPayload()).isEqualTo("{\"data\":\"value\"}");
         assertThat(message.getReceivedAt()).isCloseTo(Instant.now(), within(2, ChronoUnit.SECONDS));
         assertThat(message.getFailCount()).isZero();
-        assertThat(message.getStatus()).isNull();
+        assertThat(message.getStatus()).isEqualTo(DltMessageStatus.PENDING);
     }
 
     @Test
@@ -50,9 +50,6 @@ class DltMessageTest {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("order-DLT", 0, 0L, null, "payload");
         DltMessage message = DltMessage.of("key-001", "id-001", "svc", "domain", "order", record);
 
-        assertThat(message.getStatus()).isNull();
-
-        message.updateStatus(DltMessageStatus.PENDING);
         assertThat(message.getStatus()).isEqualTo(DltMessageStatus.PENDING);
 
         message.updateStatus(DltMessageStatus.PERMANENTLY_FAILED);
