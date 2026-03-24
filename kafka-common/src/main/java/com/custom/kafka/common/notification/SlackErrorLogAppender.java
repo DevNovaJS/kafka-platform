@@ -1,5 +1,6 @@
 package com.custom.kafka.common.notification;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -17,7 +18,6 @@ import org.springframework.web.client.RestClient;
 import java.time.Instant;
 
 import static com.custom.kafka.common.message.CommonConstants.SLACK_TIME_FORMAT;
-import static ch.qos.logback.classic.Level.ERROR;
 
 @Component
 @RequiredArgsConstructor
@@ -43,18 +43,23 @@ public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        if (!ERROR.equals(event.getLevel())) {
+        if (!Level.ERROR.equals(event.getLevel())) {
             return;
         }
+
         if (webhookUrl.isBlank()) {
+            addError("Webhook URL is blank");
             return;
         }
 
         try {
-            String json = buildBlockKit(
-                    event.getLoggerName(),
-                    event.getThreadName(),
-                    SLACK_TIME_FORMAT.format(Instant.ofEpochMilli(event.getTimeStamp())),
+            String body = SlackBlockKitBuilder.build(
+                    ":x: ERROR Log Alert",
+                    new String[][]{
+                            {"Logger", event.getLoggerName()},
+                            {"Thread", event.getThreadName()},
+                            {"Time", SLACK_TIME_FORMAT.format(Instant.ofEpochMilli(event.getTimeStamp()))}
+                    },
                     event.getFormattedMessage(),
                     extractStackTrace(event)
             );
@@ -62,7 +67,7 @@ public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
             restClient.post()
                     .uri(webhookUrl)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(json)
+                    .body(body)
                     .retrieve()
                     .toBodilessEntity();
         } catch (Exception e) {
@@ -70,33 +75,6 @@ public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
         }
     }
 
-    private String buildBlockKit(String loggerName, String threadName,
-                                 String timestamp, String message, String stackTrace) {
-        var sb = new StringBuilder();
-
-        sb.append("""
-                {"blocks":[{"type":"header","text":{"type":"plain_text","text":":x: ERROR Log Alert"}},\
-                {"type":"section","fields":[\
-                {"type":"mrkdwn","text":"*Logger:*\\n%s"},\
-                {"type":"mrkdwn","text":"*Thread:*\\n%s"},\
-                {"type":"mrkdwn","text":"*Time:*\\n%s"}]}""".formatted(
-                escape(loggerName), escape(threadName), escape(timestamp)));
-
-        if (message != null && !message.isBlank()) {
-            sb.append("""
-                    ,{"type":"section","text":{"type":"mrkdwn","text":"*Message:*\\n```%s```"}}""".formatted(
-                    escape(truncate(message))));
-        }
-
-        if (stackTrace != null && !stackTrace.isBlank()) {
-            sb.append("""
-                    ,{"type":"section","text":{"type":"mrkdwn","text":"*Stacktrace:*\\n```%s```"}}""".formatted(
-                    escape(truncate(stackTrace))));
-        }
-
-        sb.append("]}");
-        return sb.toString();
-    }
 
     private String extractStackTrace(ILoggingEvent event) {
         IThrowableProxy tp = event.getThrowableProxy();
@@ -120,27 +98,5 @@ public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
         }
 
         return sb.toString();
-    }
-
-    private static String escape(String text) {
-        if (text == null) {
-            return "";
-        }
-
-        return text.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "")
-                .replace("\t", "    ");
-    }
-
-    private static String truncate(String text) {
-        int maxLength = 2500;
-
-        if (text.length() <= maxLength) {
-            return text;
-        }
-
-        return text.substring(0, maxLength) + "…";
     }
 }
