@@ -22,3 +22,7 @@ management:
       exposure:
         include: health,info,metrics
 
+slack:
+  error-log:
+    stacktrace-lines: 5
+

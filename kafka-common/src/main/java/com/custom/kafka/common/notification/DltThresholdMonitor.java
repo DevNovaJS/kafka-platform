@@ -22,6 +22,7 @@ public class DltThresholdMonitor {
     @Value("${kafka.dlt.threshold.max-count:10}")
     private long maxCount;
 
+    // TODO 토픽별 임계치 설정 추가
     @Scheduled(fixedRateString = "${kafka.dlt.threshold.check-interval:60000}")
     public void checkThreshold() {
         try {
@@ -29,10 +30,12 @@ public class DltThresholdMonitor {
             Map<String, Long> failedByTopic = historyService.countFailedByTopicAfter(windowStart);
 
             failedByTopic.forEach((topic, count) -> {
-                if (count > maxCount) {
-                    log.warn("DLT 임계치 초과: topic={}, count={}, window={}분", topic, count, windowMinutes);
-                    slackNotifier.sendDltThresholdAlert(topic, count, windowMinutes);
+                if (count <= maxCount) {
+                    return;
                 }
+
+                log.warn("DLT 임계치 초과: topic={}, count={}, window={}분", topic, count, windowMinutes);
+                slackNotifier.sendDltThresholdAlert(topic, count, windowMinutes);
             });
         } catch (Exception e) {
             log.error("DLT 임계치 모니터링 실패: {}", e.getMessage(), e);

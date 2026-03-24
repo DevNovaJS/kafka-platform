@@ -4,7 +4,6 @@ import com.custom.kafka.common.dlt.DltSender;
 import com.custom.kafka.common.history.MessageHistory;
 import com.custom.kafka.common.history.MessageHistoryRepository;
 import com.custom.kafka.common.history.MessageHistoryStatus;
-import com.custom.kafka.common.notification.SlackNotifier;
 import com.custom.kafka.common.registry.MetadataRegistryService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -33,9 +32,6 @@ class KafkaMessageProcessingAspectTest {
     private DltSender dltSender;
 
     @Mock
-    private SlackNotifier slackNotifier;
-
-    @Mock
     private MetadataRegistryService metadataRegistryService;
 
     @Mock
@@ -47,7 +43,7 @@ class KafkaMessageProcessingAspectTest {
     void duplicateMessage_savesSkippedAndReturnsNull() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+                messageHistoryRepository, dltSender, objectMapper, metadataRegistryService
         );
         ConsumerRecord<String, String> record = createRecord("key-1", "id-1", 0,
                 "{\"eventKey\":\"key-1\",\"eventId\":\"id-1\",\"payload\":{}}");
@@ -74,7 +70,7 @@ class KafkaMessageProcessingAspectTest {
     void successfulProcessing_savesSuccessStatus() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+                messageHistoryRepository, dltSender, objectMapper, metadataRegistryService
         );
         ConsumerRecord<String, String> record = createRecord("key-2", "id-2", 0,
                 "{\"eventKey\":\"key-2\",\"eventId\":\"id-2\",\"payload\":{}}");
@@ -101,7 +97,7 @@ class KafkaMessageProcessingAspectTest {
     void successfulProcessing_withServiceNameAndDomain_registersMetadata() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+                messageHistoryRepository, dltSender, objectMapper, metadataRegistryService
         );
         ConsumerRecord<String, String> record = createRecordWithMetadata("key-5", "id-5", 0,
                 "{\"eventKey\":\"key-5\",\"eventId\":\"id-5\",\"payload\":{}}",
@@ -123,10 +119,10 @@ class KafkaMessageProcessingAspectTest {
     }
 
     @Test
-    void failedProcessing_savesFailedAndSendsDltAndNotifiesSlack() throws Throwable {
+    void failedProcessing_savesFailedAndSendsDlt() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+                messageHistoryRepository, dltSender, objectMapper, metadataRegistryService
         );
         ConsumerRecord<String, String> record = createRecord("key-3", "id-3", 1,
                 "{\"eventKey\":\"key-3\",\"eventId\":\"id-3\",\"payload\":{}}");
@@ -147,7 +143,6 @@ class KafkaMessageProcessingAspectTest {
         assertThat(captor.getValue().errorMessage()).isEqualTo("processing error");
 
         verify(dltSender).send("key-3", "id-3", 1, record);
-        verify(slackNotifier).sendError(eq("key-3"), eq("id-3"), eq(1), eq(record), eq(error));
         verify(metadataRegistryService).registerIfNew("unknown", "unknown");
     }
 
@@ -155,7 +150,7 @@ class KafkaMessageProcessingAspectTest {
     void invalidJson_skipsAllProcessing() throws Throwable {
         // given — invalid JSON payload, eventKey/eventId extraction fails
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+                messageHistoryRepository, dltSender, objectMapper, metadataRegistryService
         );
         ConsumerRecord<String, String> record = createRecord(null, null, 0, "invalid-json");
 
@@ -166,14 +161,13 @@ class KafkaMessageProcessingAspectTest {
         assertThat(result).isNull();
         verifyNoInteractions(messageHistoryRepository);
         verify(dltSender, never()).send(anyString(), anyString(), anyInt(), any());
-        verify(slackNotifier, never()).sendError(anyString(), anyString(), anyInt(), any(), any());
     }
 
     @Test
     void nullEventKey_skipsAllProcessing() throws Throwable {
         // given — JSON is valid but eventKey is null
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+                messageHistoryRepository, dltSender, objectMapper, metadataRegistryService
         );
         ConsumerRecord<String, String> record = createRecord(null, null, 0,
                 "{\"eventKey\":null,\"eventId\":null,\"payload\":{}}");
@@ -186,14 +180,13 @@ class KafkaMessageProcessingAspectTest {
         verify(joinPoint, never()).proceed();
         verifyNoInteractions(messageHistoryRepository);
         verify(dltSender, never()).send(anyString(), anyString(), anyInt(), any());
-        verify(slackNotifier, never()).sendError(anyString(), anyString(), anyInt(), any(), any());
     }
 
     @Test
     void withFailCount_extractsFromHeader() throws Throwable {
         // given
         KafkaMessageProcessingAspect aspect = new KafkaMessageProcessingAspect(
-                messageHistoryRepository, dltSender, slackNotifier, objectMapper, metadataRegistryService
+                messageHistoryRepository, dltSender, objectMapper, metadataRegistryService
         );
         ConsumerRecord<String, String> record = createRecord("key-4", "id-4", 2,
                 "{\"eventKey\":\"key-4\",\"eventId\":\"id-4\",\"payload\":{}}");

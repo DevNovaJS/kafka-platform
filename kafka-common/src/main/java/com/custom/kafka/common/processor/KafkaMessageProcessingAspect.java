@@ -6,7 +6,6 @@ import com.custom.kafka.common.history.MessageHistoryRepository;
 import com.custom.kafka.common.history.MessageHistoryStatus;
 import com.custom.kafka.common.message.KafkaEventMessage;
 import com.custom.kafka.common.message.KafkaMessageHeaders;
-import com.custom.kafka.common.notification.SlackNotifier;
 import com.custom.kafka.common.registry.MetadataRegistryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ import java.time.Instant;
 public class KafkaMessageProcessingAspect {
     private final MessageHistoryRepository messageHistoryRepository;
     private final DltSender dltSender;
-    private final SlackNotifier slackNotifier;
     private final ObjectMapper objectMapper;
     private final MetadataRegistryService metadataRegistryService;
 
@@ -104,7 +102,6 @@ public class KafkaMessageProcessingAspect {
             );
 
             dltSender.send(eventKey, eventId, failCount, record);
-            slackNotifier.sendError(eventKey, eventId, failCount, record, e);
 
             return null;
         }

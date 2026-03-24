@@ -44,12 +44,12 @@ kafka-platform/
 ├── kafka-common/          # java-library — 모든 컨슈머가 의존하는 공통모듈
 │   └── com.custom.kafka.common
 │       ├── config/        # KafkaContainerFactoryBuilder, KafkaProducerConfig, CustomKafkaListenerProperties
-│       ├── message/       # KafkaEventMessage, KafkaMessageHeaders, CommonConstants
+│       ├── message/       # KafkaEventMessage, KafkaMessageHeaders, CommonConstants (DLT_TOPIC_SUFFIX, SLACK_TIME_FORMAT)
 │       ├── processor/     # KafkaMessageHandler (애너테이션), KafkaMessageProcessingAspect (AOP)
 │       ├── history/       # MessageHistory (MongoDB Document), MessageHistoryRepository, MessageHistoryService, TopicCount
 │       ├── registry/      # MetadataRegistry (MongoDB Document), MetadataRegistryRepository, MetadataRegistryService
 │       ├── dlt/           # DltSender
-│       └── notification/  # SlackNotifier, DltThresholdMonitor, SlackErrorLogAppender, SlackErrorLogAppenderConfig
+│       └── notification/  # SlackNotifier, DltThresholdMonitor, SlackErrorLogAppender
 ├── kafka-dlt/             # spring-boot app — DLT 메시지 수신/저장
 │   └── com.custom.kafka.dlt
 │       ├── config/        # DltKafkaConfig
@@ -79,7 +79,7 @@ kafka-platform/
     → true  → SKIPPED 이력 저장 후 return
     → false → joinPoint.proceed() 실행
       → SUCCESS → 이력 저장 (SUCCESS) → MetadataRegistry 등록
-      → FAIL    → 이력 저장 (FAILED) → DLT 발송 (failCount+1) → 슬랙 에러 알림
+      → FAIL    → 이력 저장 (FAILED) → DLT 발송 (failCount+1) → log.error() → SlackErrorLogAppender 경유 슬랙 알림
 ```
 
 - 멱등키: `{eventKey, eventId, failCount}` MongoDB compound index (non-unique — 중복 저장 허용, 멱등성 체크는 앱 레벨 `existsByEventKeyAndEventIdAndFailCount`로 수행)
@@ -112,27 +112,27 @@ kafka-platform/
 
 | 경로 | 트리거 | 담당 클래스 | 포맷 |
 |---|---|---|---|
-| Kafka 처리 오류 | AOP에서 컨슈머 예외 catch | `SlackNotifier.sendError()` | Block Kit (Kafka 컨텍스트 포함) |
+| Kafka 처리 오류 + 모든 ERROR 로그 | Logback Appender (ERROR 레벨) 자동 감지 | `SlackErrorLogAppender` → 자체 `RestClient` 직접 발송 | Block Kit |
 | DLT 임계치 초과 | `@Scheduled` 주기 체크 | `SlackNotifier.sendDltThresholdAlert()` | Block Kit |
-| ERROR 로그 자동 감지 | Logback Appender (ERROR 레벨) | `SlackErrorLogAppender` → 자체 `RestClient` 직접 발송 | Block Kit |
 
 #### ERROR 로그 자동 알림 (SlackErrorLogAppender)
 
-`AppenderBase<ILoggingEvent>`를 상속한 Custom Logback Appender. `SlackErrorLogAppenderConfig`(`@Configuration`)에서 프로그래밍 방식으로 root logger에 등록한다 (logback XML 없음).
+`AppenderBase<ILoggingEvent>`를 상속한 Custom Logback Appender. `@Component` + `@PostConstruct`로 root logger에 프로그래밍 방식으로 등록한다 (logback XML 없음).
 
 ```
 ERROR 로그 발생
   → SlackErrorLogAppender.append(event)
-  → 제외 로거 체크 (notification 패키지 — 무한 루프 방지)
-  → Rate Limit 체크 (로거+메시지 조합, 기본 60초 내 중복 무시)
-  → Block Kit JSON 구성 → RestClient로 Slack Webhook 직접 발송
+  → ERROR 레벨 + webhookUrl 체크
+  → Block Kit JSON 구성 → 자체 RestClient로 Slack Webhook 직접 발송
+  → 발송 실패 시 addError() (Logback 내부 오류 처리)
 ```
 
 **설계 원칙:**
-- Appender는 Spring Bean이 아님 — 생성자에서 값 주입, `RestClient` 직접 보유
-- `SlackNotifier`를 거치지 않음 → Slack 발송 실패 `log.error()` → Appender 재진입 루프 원천 차단
-- `com.custom.kafka.common.notification` 패키지 + `KafkaMessageProcessingAspect` 로거 제외 (AOP `sendError()`와 중복 방지)
-- Rate Limiting: `ConcurrentHashMap<loggerName:message, Instant>`, 만료 엔트리 주기적 sweep
+- `@Component` Spring Bean — `@PostConstruct`에서 root logger에 등록
+- `SlackNotifier`를 거치지 않음 — 자체 `RestClient.create()` 보유
+- 재진입 루프 방지: `AppenderBase`의 내장 `guard`(ThreadLocal)가 동일 스레드 재귀 호출 차단
+- 발송 실패 시 `addError()` 사용 — `log.error()` 호출 금지 (재귀 방지)
+- Rate Limiting: 미구현 (추후 작업 예정)
 
 #### Slack 메시지 포맷 (Block Kit 공통)
 
@@ -200,5 +200,5 @@ slack:
 - `CustomKafkaListenerProperties`로 concurrency/ackMode/syncCommits/pollTimeout/batchListener 모듈별 커스텀 가능
 - `kafka.dlt.max-retry-count`: DLT 최대 재시도 횟수 (기본값 3, 초과 시 발송 중단) — `DltConsumer` `@Value` 참조
 - `slack.error-log.enabled`: ERROR 로그 Slack 자동 알림 활성화 (기본 true)
-- `slack.error-log.rate-limit-seconds`: 동일 에러 중복 발송 방지 간격 (기본 60)
+- `slack.error-log.rate-limit-seconds`: 동일 에러 중복 발송 방지 간격 (기본 60) — 미구현, 추후 작업 예정
 - `slack.error-log.stacktrace-lines`: 스택트레이스 포함 줄 수 (기본 5)

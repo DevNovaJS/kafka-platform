@@ -1,11 +1,11 @@
 package com.custom.kafka.common.notification;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClient;
 
@@ -32,27 +32,6 @@ class SlackNotifierTest {
     private SlackNotifier slackNotifier;
 
     @Test
-    void sendError_blankUrl_skips() {
-        ReflectionTestUtils.setField(slackNotifier, "webhookUrl", "");
-
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "payload");
-        slackNotifier.sendError("key-1", "id-1", 1, record, new RuntimeException("test error"));
-
-        verifyNoInteractions(restClient);
-    }
-
-    @Test
-    void sendError_withUrl_sendsPost() {
-        ReflectionTestUtils.setField(slackNotifier, "webhookUrl", "https://hooks.slack.com/test");
-        stubRestClientChain();
-
-        ConsumerRecord<String, String> record = new ConsumerRecord<>("topic", 0, 0L, null, "payload");
-        slackNotifier.sendError("key-1", "id-1", 1, record, new RuntimeException("test error"));
-
-        verify(restClient).post();
-    }
-
-    @Test
     void sendDltThresholdAlert_blankUrl_skips() {
         ReflectionTestUtils.setField(slackNotifier, "webhookUrl", "");
 
@@ -74,6 +53,7 @@ class SlackNotifierTest {
     private void stubRestClientChain() {
         when(restClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any(MediaType.class))).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.toBodilessEntity()).thenReturn(null);
