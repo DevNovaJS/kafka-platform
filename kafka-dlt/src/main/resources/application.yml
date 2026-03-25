@@ -33,3 +33,4 @@ kafka:
 slack:
   error-log:
     stacktrace-lines: 5
+    rate-limit-seconds: 60

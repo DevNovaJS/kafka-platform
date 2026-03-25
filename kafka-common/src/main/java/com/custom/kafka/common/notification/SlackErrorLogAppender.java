@@ -7,6 +7,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.LoggerFactory;
@@ -15,7 +17,11 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.custom.kafka.common.message.CommonConstants.SLACK_TIME_FORMAT;
 
@@ -28,9 +34,17 @@ public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
     private String webhookUrl;
     @Value("${slack.error-log.stacktrace-lines:5}")
     private int stacktraceLines;
+    @Value("${slack.error-log.rate-limit-seconds:60}")
+    private int rateLimitSeconds;
+
+    private Cache<String, AtomicInteger> rateLimitCache;
 
     @PostConstruct
     void register() {
+        rateLimitCache = Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofSeconds(rateLimitSeconds))
+                .build();
+
         LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
         Logger rootLogger = context.getLogger(Logger.ROOT_LOGGER_NAME);
 
@@ -52,14 +66,34 @@ public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
             return;
         }
 
+        String key = buildRateLimitKey(event);
+        AtomicInteger counter = rateLimitCache.getIfPresent(key);
+
+        if (counter != null) {
+            counter.incrementAndGet();
+            return;
+        }
+
+        int skipped = 0;
+        AtomicInteger prev = rateLimitCache.asMap().put(key, new AtomicInteger(0));
+        if (prev != null) {
+            skipped = prev.get();
+        }
+
         try {
+            List<String[]> fields = new ArrayList<>(List.of(
+                    new String[]{"Logger", event.getLoggerName()},
+                    new String[]{"Thread", event.getThreadName()},
+                    new String[]{"Time", SLACK_TIME_FORMAT.format(Instant.ofEpochMilli(event.getTimeStamp()))}
+            ));
+
+            if (skipped > 0) {
+                fields.add(new String[]{"Suppressed", skipped + "건 동일 에러 생략됨"});
+            }
+
             String body = SlackBlockKitBuilder.build(
                     ":x: ERROR Log Alert",
-                    new String[][]{
-                            {"Logger", event.getLoggerName()},
-                            {"Thread", event.getThreadName()},
-                            {"Time", SLACK_TIME_FORMAT.format(Instant.ofEpochMilli(event.getTimeStamp()))}
-                    },
+                    fields.toArray(String[][]::new),
                     event.getFormattedMessage(),
                     extractStackTrace(event)
             );
@@ -75,6 +109,11 @@ public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
         }
     }
 
+    private String buildRateLimitKey(ILoggingEvent event) {
+        IThrowableProxy tp = event.getThrowableProxy();
+        String exceptionClass = tp != null ? tp.getClassName() : "null";
+        return event.getLoggerName() + ":" + exceptionClass;
+    }
 
     private String extractStackTrace(ILoggingEvent event) {
         IThrowableProxy tp = event.getThrowableProxy();

@@ -132,7 +132,7 @@ ERROR 로그 발생
 - `SlackNotifier`를 거치지 않음 — 자체 `RestClient.create()` 보유
 - 재진입 루프 방지: `AppenderBase`의 내장 `guard`(ThreadLocal)가 동일 스레드 재귀 호출 차단
 - 발송 실패 시 `addError()` 사용 — `log.error()` 호출 금지 (재귀 방지)
-- Rate Limiting: 미구현 (추후 작업 예정)
+- Rate Limiting: `ConcurrentHashMap<loggerName:exceptionClassName, RateLimitEntry>` 기반 — 동일 키의 에러는 `rate-limit-seconds` 이내 발송 억제, 재발송 시 생략 건수 포함
 
 #### Slack 메시지 포맷 (Block Kit 공통)
 
@@ -200,5 +200,5 @@ slack:
 - `CustomKafkaListenerProperties`로 concurrency/ackMode/syncCommits/pollTimeout/batchListener 모듈별 커스텀 가능
 - `kafka.dlt.max-retry-count`: DLT 최대 재시도 횟수 (기본값 3, 초과 시 발송 중단) — `DltConsumer` `@Value` 참조
 - `slack.error-log.enabled`: ERROR 로그 Slack 자동 알림 활성화 (기본 true)
-- `slack.error-log.rate-limit-seconds`: 동일 에러 중복 발송 방지 간격 (기본 60) — 미구현, 추후 작업 예정
+- `slack.error-log.rate-limit-seconds`: 동일 에러 중복 발송 방지 간격 (기본 60)
 - `slack.error-log.stacktrace-lines`: 스택트레이스 포함 줄 수 (기본 5)

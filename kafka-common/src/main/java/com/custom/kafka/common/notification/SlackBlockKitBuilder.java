@@ -1,62 +1,62 @@
 package com.custom.kafka.common.notification;
 
+import com.slack.api.model.block.HeaderBlock;
+import com.slack.api.model.block.LayoutBlock;
+import com.slack.api.model.block.SectionBlock;
+import com.slack.api.model.block.composition.MarkdownTextObject;
+import com.slack.api.model.block.composition.PlainTextObject;
+import com.slack.api.model.block.composition.TextObject;
+import com.slack.api.util.json.GsonFactory;
+import com.slack.api.webhook.Payload;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SlackBlockKitBuilder {
     private static final int MAX_TEXT_LENGTH = 2500;
 
     public static String build(String header, String[][] fields, String message, String stackTrace) {
-        var sb = new StringBuilder();
-        sb.append("""
-                {"blocks":[{"type":"header","text":{"type":"plain_text","text":"%s"}},\
-                {"type":"section","fields":[""".formatted(escape(header)));
+        List<LayoutBlock> blocks = new ArrayList<>();
 
-        for (int i = 0; i < fields.length; i++) {
-            if (i > 0) {
-                sb.append(',');
-            }
+        blocks.add(HeaderBlock.builder()
+                .text(PlainTextObject.builder().text(header).emoji(true).build())
+                .build());
 
-            sb.append("""
-                    {"type":"mrkdwn","text":"*%s:*\\n%s"}""".formatted(
-                    escape(fields[i][0]), escape(fields[i][1])));
+        List<TextObject> fieldList = new ArrayList<>();
+        for (String[] field : fields) {
+            fieldList.add(MarkdownTextObject.builder()
+                    .text("*" + field[0] + ":*\n" + field[1])
+                    .build());
         }
-        sb.append("]}");
+        blocks.add(SectionBlock.builder().fields(fieldList).build());
 
         if (message != null && !message.isBlank()) {
-            sb.append("""
-                    ,{"type":"section","text":{"type":"mrkdwn","text":"*Message:*\\n```%s```"}}""".formatted(
-                    escape(truncate(message))));
+            blocks.add(SectionBlock.builder()
+                    .text(MarkdownTextObject.builder()
+                            .text("*Message:*\n```" + truncate(message) + "```")
+                            .build())
+                    .build());
         }
 
         if (stackTrace != null && !stackTrace.isBlank()) {
-            sb.append("""
-                    ,{"type":"section","text":{"type":"mrkdwn","text":"*Stacktrace:*\\n```%s```"}}""".formatted(
-                    escape(truncate(stackTrace))));
+            blocks.add(SectionBlock.builder()
+                    .text(MarkdownTextObject.builder()
+                            .text("*Stacktrace:*\n```" + truncate(stackTrace) + "```")
+                            .build())
+                    .build());
         }
 
-        sb.append("]}");
-        return sb.toString();
-    }
-
-    private static String escape(String text) {
-        if (text == null) {
-            return "";
-        }
-
-        return text.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "")
-                .replace("\t", "    ");
+        Payload payload = Payload.builder().blocks(blocks).build();
+        return GsonFactory.createSnakeCase().toJson(payload);
     }
 
     private static String truncate(String text) {
         if (text.length() <= MAX_TEXT_LENGTH) {
             return text;
         }
-
         return text.substring(0, MAX_TEXT_LENGTH) + "…";
     }
 }
