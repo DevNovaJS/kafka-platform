@@ -6,7 +6,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
-import ch.qos.logback.core.AppenderBase;
+import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.annotation.PostConstruct;
@@ -27,7 +27,7 @@ import static com.custom.kafka.common.message.CommonConstants.SLACK_TIME_FORMAT;
 
 @Component
 @RequiredArgsConstructor
-public class SlackErrorLogAppender extends AppenderBase<ILoggingEvent> {
+public class SlackErrorLogAppender extends UnsynchronizedAppenderBase<ILoggingEvent> {
     private final RestClient restClient;
 
     @Value("${slack.webhook.url:}")

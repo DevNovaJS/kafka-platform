@@ -1,7 +1,6 @@
 package com.custom.kafka.dlt.config;
 
 import com.custom.kafka.common.history.MessageHistoryRepository;
-import com.custom.kafka.common.history.MessageHistoryService;
 import com.custom.kafka.common.registry.MetadataRegistryRepository;
 import com.custom.kafka.common.registry.MetadataRegistryService;
 import com.custom.kafka.dlt.repository.DltMessageRepository;
@@ -28,9 +27,6 @@ class DltKafkaConfigIntegrationTest {
 
     @MockitoBean
     private MessageHistoryRepository messageHistoryRepository;
-
-    @MockitoBean
-    private MessageHistoryService messageHistoryService;
 
     @MockitoBean
     private MetadataRegistryRepository metadataRegistryRepository;

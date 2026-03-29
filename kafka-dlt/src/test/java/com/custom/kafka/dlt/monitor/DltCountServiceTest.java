@@ -1,5 +1,6 @@
-package com.custom.kafka.common.history;
+package com.custom.kafka.dlt.monitor;
 
+import com.custom.kafka.dlt.model.TopicCount;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,11 +17,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class MessageHistoryServiceTest {
+class DltCountServiceTest {
 
     @Mock
     private MongoTemplate mongoTemplate;
@@ -29,22 +29,22 @@ class MessageHistoryServiceTest {
     private AggregationResults<TopicCount> aggregationResults;
 
     @InjectMocks
-    private MessageHistoryService messageHistoryService;
+    private DltCountService dltCountService;
 
     @Test
-    void countFailedByTopicAfter_returnsTopicCountMap() {
+    void countByOriginalTopicAfter_returnsDltCountMap() {
         // given
         Instant windowStart = Instant.now().minusSeconds(3600);
-        List<TopicCount> topicCounts = List.of(
+        List<TopicCount> results = List.of(
                 new TopicCount("order-events", 5),
                 new TopicCount("payment-events", 3)
         );
-        when(aggregationResults.getMappedResults()).thenReturn(topicCounts);
-        when(mongoTemplate.aggregate(any(Aggregation.class), eq("kafka_message_history"), eq(TopicCount.class)))
+        when(aggregationResults.getMappedResults()).thenReturn(results);
+        when(mongoTemplate.aggregate(any(Aggregation.class), eq("kafka_dlt_message"), eq(TopicCount.class)))
                 .thenReturn(aggregationResults);
 
         // when
-        Map<String, Long> result = messageHistoryService.countFailedByTopicAfter(windowStart);
+        Map<String, Long> result = dltCountService.countByOriginalTopicAfter(windowStart);
 
         // then
         assertThat(result).hasSize(2);
@@ -53,32 +53,17 @@ class MessageHistoryServiceTest {
     }
 
     @Test
-    void countFailedByTopicAfter_emptyResult_returnsEmptyMap() {
+    void countByOriginalTopicAfter_emptyResult_returnsEmptyMap() {
         // given
         Instant windowStart = Instant.now().minusSeconds(3600);
         when(aggregationResults.getMappedResults()).thenReturn(List.of());
-        when(mongoTemplate.aggregate(any(Aggregation.class), eq("kafka_message_history"), eq(TopicCount.class)))
+        when(mongoTemplate.aggregate(any(Aggregation.class), eq("kafka_dlt_message"), eq(TopicCount.class)))
                 .thenReturn(aggregationResults);
 
         // when
-        Map<String, Long> result = messageHistoryService.countFailedByTopicAfter(windowStart);
+        Map<String, Long> result = dltCountService.countByOriginalTopicAfter(windowStart);
 
         // then
         assertThat(result).isEmpty();
-    }
-
-    @Test
-    void countFailedByTopicAfter_passesCorrectCollectionName() {
-        // given
-        Instant windowStart = Instant.now();
-        when(aggregationResults.getMappedResults()).thenReturn(List.of());
-        when(mongoTemplate.aggregate(any(Aggregation.class), eq("kafka_message_history"), eq(TopicCount.class)))
-                .thenReturn(aggregationResults);
-
-        // when
-        messageHistoryService.countFailedByTopicAfter(windowStart);
-
-        // then
-        verify(mongoTemplate).aggregate(any(Aggregation.class), eq("kafka_message_history"), eq(TopicCount.class));
     }
 }

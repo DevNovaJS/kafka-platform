@@ -8,5 +8,6 @@ dependencies {
     api 'org.aspectj:aspectjweaver'
     api 'org.springframework.boot:spring-boot-starter-web'
     api 'com.slack.api:slack-api-client:1.48.0'
+    api 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'com.github.ben-manes.caffeine:caffeine'
 }

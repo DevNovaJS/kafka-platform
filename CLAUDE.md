@@ -112,12 +112,12 @@ kafka-platform/
 
 | 경로 | 트리거 | 담당 클래스 | 포맷 |
 |---|---|---|---|
-| Kafka 처리 오류 + 모든 ERROR 로그 | Logback Appender (ERROR 레벨) 자동 감지 | `SlackErrorLogAppender` → 자체 `RestClient` 직접 발송 | Block Kit |
+| Kafka 처리 오류 + 모든 ERROR 로그 | Logback Appender (ERROR 레벨) 자동 감지 | `SlackErrorLogAppender` → 주입받은 `RestClient` 직접 발송 | Block Kit |
 | DLT 임계치 초과 | `@Scheduled` 주기 체크 | `SlackNotifier.sendDltThresholdAlert()` | Block Kit |
 
 #### ERROR 로그 자동 알림 (SlackErrorLogAppender)
 
-`AppenderBase<ILoggingEvent>`를 상속한 Custom Logback Appender. `@Component` + `@PostConstruct`로 root logger에 프로그래밍 방식으로 등록한다 (logback XML 없음).
+`UnsynchronizedAppenderBase<ILoggingEvent>`를 상속한 Custom Logback Appender. `@Component` + `@PostConstruct`로 root logger에 프로그래밍 방식으로 등록한다 (logback XML 없음).
 
 ```
 ERROR 로그 발생
@@ -128,11 +128,10 @@ ERROR 로그 발생
 ```
 
 **설계 원칙:**
-- `@Component` Spring Bean — `@PostConstruct`에서 root logger에 등록
-- `SlackNotifier`를 거치지 않음 — 자체 `RestClient.create()` 보유
-- 재진입 루프 방지: `AppenderBase`의 내장 `guard`(ThreadLocal)가 동일 스레드 재귀 호출 차단
+- `@Component` Spring Bean — `@PostConstruct`에서 root logger에 등록, `RestClient`는 Spring Bean 주입
+- `SlackNotifier`를 거치지 않음 — 주입받은 `RestClient`로 Slack Webhook 직접 발송
 - 발송 실패 시 `addError()` 사용 — `log.error()` 호출 금지 (재귀 방지)
-- Rate Limiting: `ConcurrentHashMap<loggerName:exceptionClassName, RateLimitEntry>` 기반 — 동일 키의 에러는 `rate-limit-seconds` 이내 발송 억제, 재발송 시 생략 건수 포함
+- Rate Limiting: Caffeine Cache(`Cache<String, AtomicInteger>`) 기반 — `loggerName:exceptionClassName` 키로 동일 에러는 `rate-limit-seconds` 이내 발송 억제, 재발송 시 생략 건수 포함
 
 #### Slack 메시지 포맷 (Block Kit 공통)
 

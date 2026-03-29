@@ -22,7 +22,7 @@ public class SlackNotifier {
     private String webhookUrl;
 
     @Async
-    public void sendDltThresholdAlert(String topic, long count, long windowMinutes) {
+    public void sendDltThresholdAlert(String topic, long count, long windowMinutes, long maxCount) {
         if (webhookUrl.isBlank()) {
             log.warn("webhook url is blank");
             return;
@@ -34,10 +34,11 @@ public class SlackNotifier {
                     new String[][]{
                             {"Topic", topic},
                             {"DLT 건수", count + "건"},
+                            {"임계치", maxCount + "건"},
                             {"기준 시간", windowMinutes + "분"},
                             {"Time", SLACK_TIME_FORMAT.format(Instant.now())}
                     },
-                    "%d분 내 DLT 메시지가 %d건 발생하여 임계치를 초과했습니다.".formatted(windowMinutes, count),
+                    "%d분 내 DLT 메시지가 %d건 발생하여 임계치(%d건)를 초과했습니다.".formatted(windowMinutes, count, maxCount),
                     null
             );
 

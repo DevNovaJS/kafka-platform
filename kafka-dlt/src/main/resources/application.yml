@@ -26,8 +26,15 @@ kafka:
   dlt:
     threshold:
       check-interval: 60000
-      window-minutes: 60
-      max-count: 10
+      window-minutes: 60      # 전역 기본값
+      max-count: 10           # 전역 기본값
+      # 토픽별 임계치 오버라이드 예시:
+      # topics:
+      #   order-events:
+      #     max-count: 5
+      #     window-minutes: 30
+      #   payment-events:
+      #     max-count: 20
     max-retry-count: 3
 
 slack:

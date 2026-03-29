@@ -35,7 +35,7 @@ class SlackNotifierTest {
     void sendDltThresholdAlert_blankUrl_skips() {
         ReflectionTestUtils.setField(slackNotifier, "webhookUrl", "");
 
-        slackNotifier.sendDltThresholdAlert("order", 15, 60);
+        slackNotifier.sendDltThresholdAlert("order", 15, 60, 10);
 
         verifyNoInteractions(restClient);
     }
@@ -45,7 +45,7 @@ class SlackNotifierTest {
         ReflectionTestUtils.setField(slackNotifier, "webhookUrl", "https://hooks.slack.com/test");
         stubRestClientChain();
 
-        slackNotifier.sendDltThresholdAlert("order", 15, 60);
+        slackNotifier.sendDltThresholdAlert("order", 15, 60, 10);
 
         verify(restClient).post();
     }
