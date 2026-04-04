@@ -5,7 +5,7 @@ import com.custom.kafka.dlt.document.DltMessageStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.mongodb.DataMongoTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -19,7 +19,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataMongoTest
+@SpringBootTest
 @Testcontainers
 @Import(DltCountService.class)
 class DltCountServiceIntegrationTest {
